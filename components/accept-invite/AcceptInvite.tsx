@@ -9,7 +9,7 @@ import SuccessState from './SuccessState'
 import { useRouter } from 'next/navigation'
 
 const AcceptInvite = () => {
-  const [currentStep, setCurrentStep] = React.useState(200)
+  const [currentStep, setCurrentStep] = React.useState(1)
   const [email, setEmail] = React.useState("")
   const [firstname, setFirstname] = React.useState("")
   const [lastname, setLastname] = React.useState("")
