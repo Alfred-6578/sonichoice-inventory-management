@@ -6,10 +6,49 @@
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ── Brand ── */
+  --color-amber:          #f59e0b;
+  --color-amber-hover:    #d97706;
+  --color-amber-muted:    #fff9eb;
+  --color-amber-border:   rgba(245, 158, 11, 0.25);
+
+  /* ── Neutrals ── */
+  --color-ink:            #111827;
+  --color-ink-secondary:  #374151;
+  --color-ink-muted:      #6b7280;
+  --color-ink-subtle:     #9ca3af;
+
+  /* ── Surfaces ── */
+  --color-surface:        #f8f9fb;
+  --color-surface-raised: #ffffff;
+  --color-border:         #e4e7ec;
+  --color-border-strong:  #d1d5db;
+
+  /* ── Status ── */
+  --color-delivered:      #16a34a;
+  --color-delivered-bg:   #f0fdf4;
+  --color-delivered-border: rgba(22, 163, 74, 0.2);
+
+  --color-transit:        #f59e0b;
+  --color-transit-bg:     #fff9eb;
+  --color-transit-border: rgba(245, 158, 11, 0.25);
+
+  --color-pending:        #9ca3af;
+  --color-pending-bg:     #f8f9fb;
+  --color-pending-border: #e4e7ec;
+
+  --color-cancelled:      #dc2626;
+  --color-cancelled-bg:   #fef2f2;
+  --color-cancelled-border: rgba(220, 38, 38, 0.2);
+
+  /* ── Auth panel (dark side) ── */
+  --color-auth-bg:        #111827;
+  --color-auth-bg-raised: #1e2638;
+  --color-auth-text-dim:  #8892a4;
+
+  --breakpoint-vsm: 550px;
+  --breakpoint-tny: 450px;
+  --breakpoint-xsm: 385px;
 }
 
 @media (prefers-color-scheme: dark) {
