@@ -23,10 +23,10 @@ const SideContent = () => {
             <div className={`${dm_mono.className} bg-ink-secondary/50 border border-ink-secondary text-ink-muted text-xs rounded-full flex items-center px-2.5 h-6`}>v.101</div>
         </div>
         <div className="flex justify-center">
-            <Image className='max-h-[38vh] xl:max-h-[42vh]' src={require('@/assets/images/forgot_password_mail.png')} alt='parcel image'></Image>
+            <Image loading='eager' className='max-h-[38vh] xl:max-h-[42vh] w-auto' src={require('@/assets/images/reset-password-lock.png')} alt='reset password lock'></Image>
         </div>
         <div className="">
-            <h1 className={`${syne.className} font-extrabold text-5xl leading-12`}>
+            <h1 className={`${syne.className} font-extrabold text-[42px] leading-11`}>
                 Almost there — <br/>
                 set your
                 <span className={`text-amber`}> new password.</span>
