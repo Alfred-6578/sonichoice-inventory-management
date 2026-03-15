@@ -23,10 +23,10 @@ const SideContent = () => {
             <div className={`${dm_mono.className} bg-ink-secondary/50 border border-ink-secondary text-ink-muted text-xs rounded-full flex items-center px-2.5 h-6`}>v.101</div>
         </div>
         <div className="">
-            <Image className='min-h-80' src={require('@/assets/images/hand_parcel.png')} alt='parcel image'></Image>
+            <Image loading='eager' className='min-h-80' src={require('@/assets/images/hand_parcel.png')} alt='parcel image'></Image>
         </div>
         <div className="">
-            <h1 className={`${syne.className} font-extrabold text-5xl leading-12`}>
+            <h1 className={`${syne.className} font-extrabold text-[42px] leading-11`}>
                 Every parcel, <br/>
                 tracked with <br/>
                 <span className={`text-amber`}>precision.</span>
