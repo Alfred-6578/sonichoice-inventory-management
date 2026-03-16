@@ -4,37 +4,34 @@ import Link from "next/link";
 const Navbar = () => {
  
   return (
-    <nav className="w-full fixed flex items-center justify-between px-6 py-4 bg-ink">
+    <nav className="w-full fixed flex items-center justify-between px-6 tny:px-8 md:px-12 lg:px-18 xl:px-27 py-6 bg-ink/70 backdrop-blur-sm z-50">
 
       {/* Logo */}
       <div className="flex items-center gap-2">
-
-        <span className="font-semibold text-lg tracking-wide text-white">
+        <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center font-bold text-black">
+          S
+        </div>
+         <span className="font-bold text-lg tracking-wide text-white">
           SONICHOICE
         </span>
       </div>
+       
 
       {/* Links */}
       <div className="hidden md:flex items-center gap-8 text-sm text-ink-muted">
-        <a href="#features" className="hover:text-ink transition">
+        <a href="#features" className="hover:text-ink-secondary transition">
           Features
         </a>
-        <a href="#how" className="hover:text-ink transition">
+        <a href="#how" className="hover:text-ink-secondary transition">
           How it works
         </a>
-        <a href="#stats" className="hover:text-ink transition">
-          Why SwiftLog
+        <a href="#stats" className="hover:text-ink-secondary transition">
+          Why sonichoice
         </a>
       </div>
 
       {/* Auth Buttons */}
       <div className="flex items-center gap-4">
-        <Link
-          href="/login"
-          className="text-sm text-ink-muted hover:text-ink transition"
-        >
-          Sign in
-        </Link>
 
         <Link
           href="/login"
