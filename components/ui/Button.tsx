@@ -8,8 +8,8 @@ const syne = Syne({
 
 interface ButtonProps {
   children: React.ReactNode;
-  onClick: () => void;
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  onClick?: () => void;
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "hero" ;
   size?: "sm" | "md" | "lg";
   disabled?: boolean;
   leftIcon?: React.ComponentType<{ className?: string }>;
@@ -49,13 +49,19 @@ export default function Button({
     outline:
       "border border-ink text-ink hover:bg-ink hover:text-white cursor-pointer",
 
-    ghost:
-      "text-ink hover:bg-gray-100 cursor-pointer",
 
     danger:
       disabled
         ? "bg-red-200 text-red-400 cursor-not-allowed"
         : "bg-red-600 text-white hover:bg-red-700 cursor-pointer",
+
+    hero:
+      disabled
+        ? "bg-amber text-white/70 cursor-not-allowed"
+        : "bg-amber text-white hover:opacity-90 cursor-pointer",
+
+    ghost:
+      "bg-ink-muted/40 border border-border/20 text-border opacity-80 hover:opacity-100 cursor-pointer",
   };
 
   return (
