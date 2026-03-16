@@ -46,7 +46,7 @@ const steps = [
 
 const Workflow = () => {
   return (
-    <section className="w-full py-14 text-white relative overflow-hidden">
+    <section id="workflow" className="w-full py-14 text-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto xl:px-6 text-center">
 
         {/* Subtitle */}

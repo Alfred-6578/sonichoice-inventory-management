@@ -22,7 +22,7 @@ const Navbar = () => {
         <a href="#features" className="hover:text-ink-secondary transition">
           Features
         </a>
-        <a href="#how" className="hover:text-ink-secondary transition">
+        <a href="#workflow" className="hover:text-ink-secondary transition">
           How it works
         </a>
         <a href="#stats" className="hover:text-ink-secondary transition">
