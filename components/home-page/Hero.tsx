@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import MetricCard from "./dashboard-preview/MetricCard";
 import MiniRow from "../ui/MiniRow";
 import TrustItem from "../ui/TrustItem";
-import SidebarItem from "./dashboard-preview/SidebarItem";
+import SidebarItem from "../ui/SidebarItem";
 import Button from "../ui/Button";
 import { DM_Mono, Syne } from "next/font/google";
 import { BiSolidShield } from "react-icons/bi";

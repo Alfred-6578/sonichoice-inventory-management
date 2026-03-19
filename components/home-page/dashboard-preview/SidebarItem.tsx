@@ -2,12 +2,14 @@ export default function SidebarItem({
   label,
   badge,
   active,
-  Icon
+  Icon,
+  onClick
 }: {
   label: string
   badge?: string
   active?: boolean
   Icon?: React.ComponentType<{ className?: string }>
+  onClick?: () => void
 }) {
   return (
     <div
@@ -16,6 +18,7 @@ export default function SidebarItem({
           ? "bg-slate-800 text-white"
           : "hover:bg-ink-muted/20 cursor-pointer"
       }`}
+      onClick={onClick}
     >
       <div className="flex items-center gap-3">
         {Icon && (
