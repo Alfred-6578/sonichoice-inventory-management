@@ -1,10 +1,10 @@
-import StatusBadge from "@/components/ui/StatutsBadge";
+import StatusBadge from "@/components/ui/StatusBadge";
 import MetricCard from "./MetricCard";
-import SidebarItem from "./SidebarItem";
 import TableRow from "./TableRow";
 import TableHeader from "./TableHeader";
 import { MdDashboard, MdLocationOn, MdPerson } from "react-icons/md";
 import { BiSolidPackage } from "react-icons/bi";
+import SidebarItem from "./SidebarItem";
 
 export default function DashboardPreview() {
   return (
@@ -94,7 +94,7 @@ export default function DashboardPreview() {
               id="PCL-009"
               name="Kemi Adeyemi"
               initials="KA"
-              color="bg-blue-500"
+              color="#2563eb"
               status="Transit"
               fee="₦6,200"
             />
@@ -103,7 +103,7 @@ export default function DashboardPreview() {
               id="PCL-008"
               name="Ngozi Eze"
               initials="NE"
-              color="bg-purple-500"
+              color="#7c3aed"
               status="Transit"
               fee="₦7,500"
             />
@@ -112,7 +112,7 @@ export default function DashboardPreview() {
               id="PCL-007"
               name="Tunde Bakare"
               initials="TB"
-              color="bg-emerald-500"
+              color="#059669"
               status="Pending"
               fee="₦1,800"
             />
@@ -121,7 +121,7 @@ export default function DashboardPreview() {
               id="PCL-005"
               name="Kemi Adeyemi"
               initials="KA"
-              color="bg-blue-500"
+              color="#2563eb"
               status="Delivered"
               fee="₦6,200"
             />
