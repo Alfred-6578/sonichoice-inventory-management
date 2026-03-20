@@ -1,6 +1,6 @@
 import StatusBadge from "../ui/StatusBadge";
 import { Table } from "../ui/Table";
-import { Parcel } from "@/types/parcelTypes";
+import { ParcelItem } from "@/types/parcelTypes";
 import Tag from "../ui/Tag";
 import AvatarName from "../ui/AvatarName";
 
@@ -8,7 +8,7 @@ type ParcelType = "incoming" | "outgoing";
 
 interface ParcelTableProps {
   type: ParcelType;
-  data: Parcel[];
+  data: ParcelItem[];
 }
 
 const getInitials = (name: string): string => {

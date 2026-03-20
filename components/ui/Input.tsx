@@ -10,16 +10,25 @@ const dm_mono = DM_Mono({
   weight: ["400", "500"],
 });
 
+type ComponentSize = "sm" | "md" | "lg";
+
 interface InputProps {
   label?: string;
   id: string;
   type?: string;
   placeholder?: string;
-  value: string;
+  value: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   Icon?: React.ComponentType<{ className?: string }>;
   className?: string;
+  size?: ComponentSize;
 }
+
+const sizeConfig: Record<ComponentSize, { label: string; field: string }> = {
+  sm: { label: "text-xs", field: "text-xs py-2" },
+  md: { label: "text-sm", field: "text-sm py-3" },
+  lg: { label: "text-base", field: "text-base py-4" },
+};
 
 export default function Input({
   label,
@@ -30,17 +39,21 @@ export default function Input({
   onChange,
   Icon,
   className,
+  size = "md",
 }: InputProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const isPassword = type === "password";
   const inputType = isPassword && showPassword ? "text" : type;
+  const mappedSize: ComponentSize = size;
+  const labelSizeClass = sizeConfig[mappedSize].label;
+  const fieldSizeClass = sizeConfig[mappedSize].field;
 
   return (
     <div className="w-full">
       {label && (
         <label
-          className={`${dm_mono.className} text-ink-muted/80 text-sm uppercase`}
+          className={`${dm_mono.className} text-ink-muted/80 uppercase ${labelSizeClass}`}
           htmlFor={id}
         >
           {label}
@@ -50,13 +63,13 @@ export default function Input({
       <div className="relative rounded-lg">
 
         {Icon && (
-          <Icon className="absolute left-3 top-[35%] text-xl text-ink-muted/80" />
+          <Icon className="absolute left-3 pr-10 top-[35%] text-xl text-ink-muted/80" />
         )}
 
         <input
-          className={`w-full rounded-lg px-4 pl-10 ${
+          className={`w-full rounded-lg px-4 ${
             isPassword ? "pr-10" : ""
-          } text-ink-muted bg-white border border-border py-3 mt-1 focus:outline-none focus:ring-2 focus:ring-amber focus:border-transparent placeholder:text-ink-muted/70 ${className}`}
+          } text-ink-muted bg-white border border-border mt-1 focus:outline-none focus:ring-2 focus:ring-amber focus:border-transparent placeholder:text-ink-muted/70 ${fieldSizeClass} ${className}`}
           type={inputType}
           id={id}
           placeholder={placeholder}

@@ -5,11 +5,13 @@ import { ReactNode } from "react";
 
 interface TableProps {
   children: ReactNode;
+  className?: string
 }
 
 interface TableBodyProps<T> {
   data: T[];
   children: (item: T) => ReactNode;
+  onRowClick?: (item: T) => void;
 }
 
 const dm_mono = DM_Mono({
@@ -30,19 +32,20 @@ export function Table({ children }: TableProps) {
 
 Table.Head = function ({ children }: TableProps) {
   return (
-    <thead className={`border-b border-[#e4e7ec] text-xs text-[#9ca3af] uppercase ${dm_mono.className}`}>
+    <thead className={`border-b  border-[#e4e7ec] text-xs text-[#9ca3af] uppercase ${dm_mono.className}`}>
       {children}
     </thead>
   );
 };
 
-Table.Body = function <T,>({ data, children }: TableBodyProps<T>) {
+Table.Body = function <T,>({ data, children, onRowClick }: TableBodyProps<T>) {
   return (
     <tbody>
       {data.map((item, i) => (
         <tr
           key={i}
-          className="border-b border-[#e4e7ec] hover:bg-[#f4f5f7] transition"
+          className="border-b border-[#e4e7ec] hover:bg-[#f4f5f7] transition cursor-pointer"
+          onClick={() => onRowClick?.(item)}
         >
           {children(item)}
         </tr>
@@ -51,17 +54,18 @@ Table.Body = function <T,>({ data, children }: TableBodyProps<T>) {
   );
 };
 
-Table.Row = function ({ children }: TableProps) {
-  return <tr>{children}</tr>;
+Table.Row = function ({ children, className }: TableProps) {
+  return <tr className={className}>{children}</tr>;
 };
 
 interface TableCellProps {
   children: ReactNode;
   head?: boolean;
   className?: string
+  onClick?: ()=> void
 }
 
-Table.Cell = function ({ children, head, className }: TableCellProps) {
+Table.Cell = function ({ children, head, className, onClick }: TableCellProps) {
   return (
     <td
       className={`px-4 ${
@@ -70,6 +74,7 @@ Table.Cell = function ({ children, head, className }: TableCellProps) {
         ${className}
         
       `}
+      onClick={onClick}
     >
       {children}
     </td>
