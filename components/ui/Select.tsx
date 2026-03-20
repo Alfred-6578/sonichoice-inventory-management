@@ -6,6 +6,8 @@ const dm_mono = DM_Mono({
   weight: ["400", "500"],
 });
 
+type ComponentSize = "sm" | "md" | "lg";
+
 interface SelectProps {
   label?: string;
   id: string;
@@ -15,7 +17,14 @@ interface SelectProps {
   Icon?: React.ComponentType<{ className?: string }>;
   placeholder?: string;
   className?: string;
+  size?: ComponentSize;
 }
+
+const sizeConfig: Record<ComponentSize, { label: string; field: string }> = {
+  sm: { label: "text-xs", field: "text-xs py-2" },
+  md: { label: "text-sm", field: "text-sm py-3" },
+  lg: { label: "text-base", field: "text-base py-4" },
+};
 
 export default function Select({
   label,
@@ -26,13 +35,17 @@ export default function Select({
   Icon,
   placeholder = "Select an option",
   className = "",
+  size = "md",
 }: SelectProps) {
+  const labelSizeClass = sizeConfig[size].label;
+  const fieldSizeClass = sizeConfig[size].field;
+
   return (
     <div className="w-full">
       {label && (
         <label
           htmlFor={id}
-          className={`${dm_mono.className} text-ink-muted/80 text-sm uppercase`}
+          className={`${dm_mono.className} text-ink-muted/80 uppercase ${labelSizeClass}`}
         >
           {label}
         </label>
@@ -40,14 +53,14 @@ export default function Select({
 
       <div className="relative rounded-lg">
         {Icon && (
-          <Icon className="absolute mx-3 top-[35%] text-xl text-ink-muted/80 pointer-events-none" />
+          <Icon className="absolute mx-3 top-[35%] pr-10 text-xl text-ink-muted/80 pointer-events-none" />
         )}
 
         <select
           id={id}
           value={value}
           onChange={onChange}
-          className={`w-full appearance-none rounded-lg px-4 pl-10 text-ink-muted bg-white border border-border py-3 mt-1 focus:outline-none focus:ring-2 focus:ring-amber focus:border-transparent ${className}`}
+          className={`w-full appearance-none rounded-lg px-4 text-ink-muted bg-white border border-border mt-1 focus:outline-none focus:ring-2 focus:ring-amber focus:border-transparent ${fieldSizeClass} ${className}`}
         >
           <option value="">{placeholder}</option>
 

@@ -40,8 +40,8 @@ export default function Button({
 
   const variants = {
     primary: disabled
-      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-      : "bg-ink text-white hover:bg-gray-800 cursor-pointer",
+      ? "bg-gray-200 text-gray-400 cursor-not-allowed border border-border"
+      : "bg-ink text-white hover:bg-gray-800 cursor-pointer border border-border",
 
     secondary:
       "border border-border text-ink-muted/80 hover:bg-gray-50 cursor-pointer",
