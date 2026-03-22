@@ -3,7 +3,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import SidebarItem from "./SidebarItem";
 import Link from "next/link";
-import { MdDashboard, MdLocationOn, MdPerson, MdSettings } from "react-icons/md";
+import { MdDashboard, MdInventory2, MdLocationOn, MdPerson, MdSettings } from "react-icons/md";
 import { BiSolidPackage } from "react-icons/bi";
 import { IoIosPeople } from "react-icons/io";
 import { X } from "lucide-react";
@@ -24,6 +24,7 @@ export default function Sidebar(
     { name: "Dashboard", href: "/dashboard", Icon: MdDashboard },
     { name: "Parcels", href: "/parcels", count: 9, Icon: BiSolidPackage },
     { name: "Branches", href: "/branches", Icon: MdLocationOn },
+    { name: "Inventory", href: "/inventory", Icon: MdInventory2 },
   ];
 
   const peopleItems = [{ name: "Clients", count: 4, href: "/clients", Icon: IoIosPeople }];
