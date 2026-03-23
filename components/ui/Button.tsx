@@ -16,6 +16,7 @@ interface ButtonProps {
   rightIcon?: React.ComponentType<{ className?: string }>;
   fullWidth?: boolean;
   className?: string;
+  type?: "button" | "submit" | "reset";
 }
 
 export default function Button({
@@ -28,6 +29,7 @@ export default function Button({
   rightIcon: RightIcon,
   fullWidth = false,
   className = "",
+  type = "button",
 }: ButtonProps) {
   const base =
     `${syne.className} flex items-center justify-center gap-2 rounded-lg font-bold transition ${className}`;
@@ -66,6 +68,7 @@ export default function Button({
 
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       className={`${base} ${sizes[size]} ${variants[variant]} ${

@@ -2,29 +2,92 @@
 import { useState } from "react";
 import { Filters } from "@/types/parcelTypes";
 
-type FilterBarProps = {
-  total: number;
-  filters: Filters;
-  onChange?: (filters: Filters) => void;
-  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
+export type FilterConfig = {
+  label: string;
+  key: string;
+  options: { value: string; label: string }[] | null;
+  placeholder?: string;
 };
 
-export default function FilterBar({ total, filters, setFilters, onChange }: FilterBarProps) {
+export type FilterBarProps = {
+  total: number;
+  filters: any;
+  onChange?: (filters: any) => void;
+  setFilters: React.Dispatch<React.SetStateAction<any>>;
+  filterConfigs?: FilterConfig[];
+  branchOptions?: { value: string; label: string }[];
+  sizeOptions?: { value: string; label: string }[];
+  categoryOptions?: { value: string; label: string }[];
+  merchantOptions?: { value: string; label: string }[];
+  showStatus?: boolean;
+  showSize?: boolean;
+  resetKeys?: string[];
+};
+
+export default function FilterBar({ 
+  total, 
+  filters, 
+  setFilters, 
+  onChange, 
+  filterConfigs,
+  branchOptions, 
+  sizeOptions, 
+  categoryOptions,
+  merchantOptions,
+  showStatus = false, 
+  showSize = true,
+  resetKeys = ["search", "branch", "size", "status"]
+}: FilterBarProps) {
  
 
-  const handleChange = (key: keyof Filters, value: string) => {
+  const handleChange = (key: string, value: string) => {
     const updated = { ...filters, [key]: value };
     setFilters(updated);
-    console.log(filters);
-    
     onChange?.(updated);
   };
 
   const clearFilters = () => {
-    const reset:Filters = { search: "", branch: "", size: "", status: "all" };
+    const reset: any = {};
+    resetKeys.forEach(key => {
+      reset[key] = key === "status" ? "all" : "";
+    });
     setFilters(reset);
     onChange?.(reset);
   };
+
+  // If filterConfigs provided, use that; otherwise use default parcel config
+  const configs: FilterConfig[] = filterConfigs || [
+    {
+      label: "Branch",
+      key: "branch",
+      options: branchOptions || [
+        { value: "Enugu (Head Office)", label: "Enugu Head Office" },
+        { value: "Nsukka", label: "Nsukka Branch" },
+        { value: "Ebonyi", label: "Ebonyi Branch" },
+      ],
+    },
+    ...(showSize ? [{
+      label: "Size",
+      key: "size",
+      options: sizeOptions || [
+        { value: "Small", label: "Small" },
+        { value: "Medium", label: "Medium" },
+        { value: "Large", label: "Large" },
+        { value: "XL", label: "XL" },
+      ],
+    }] : []),
+    ...(showStatus ? [{
+      label: "Status",
+      key: "status",
+      options: [
+        { value: "all", label: "All Status" },
+        { value: "transit", label: "Transit" },
+        { value: "delivered", label: "Delivered" },
+        { value: "pending", label: "Pending" },
+        { value: "cancelled", label: "Cancelled" },
+      ],
+    }] : []),
+  ];
 
   return (
     <div className="flex gap-2 items-center flex-wrap py-1.5 pb-3">
@@ -43,30 +106,20 @@ export default function FilterBar({ total, filters, setFilters, onChange }: Filt
         />
       </div>
 
-      {/* Branch Filter */}
-      <select
-        value={filters.branch}
-        onChange={(e) => handleChange("branch", e.target.value)}
-        className="px-2.5 py-[7px] bg-surface-raised border border-border rounded-lg text-[13px] text-ink-muted outline-none cursor-pointer focus:border-border-strong"
-      >
-        <option value="">All Branches</option>
-        <option value="Enugu (Head Office)">Enugu Head Office</option>
-        <option value="Nsukka">Nsukka Branch</option>
-        <option value="Ebonyi">Ebonyi Branch</option>
-      </select>
-
-      {/* Size Filter */}
-      <select
-        value={filters.size}
-        onChange={(e) => handleChange("size", e.target.value)}
-        className="px-2.5 py-[7px] bg-surface-raised border border-border rounded-lg text-[13px] text-ink-muted outline-none cursor-pointer focus:border-border-strong"
-      >
-        <option value="">All Sizes</option>
-        <option>Small</option>
-        <option>Medium</option>
-        <option>Large</option>
-        <option>XL</option>
-      </select>
+      {/* Dynamic Filters */}
+      {configs.map((config) => (
+        <select
+          key={config.key}
+          value={filters[config.key] || ""}
+          onChange={(e) => handleChange(config.key, e.target.value)}
+          className="px-2.5 py-[7px] bg-surface-raised border border-border rounded-lg text-[13px] text-ink-muted outline-none cursor-pointer focus:border-border-strong"
+        >
+          <option value="">All {config.label}</option>
+          {config.options?.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      ))}
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-1.5">

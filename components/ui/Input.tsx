@@ -22,6 +22,7 @@ interface InputProps {
   Icon?: React.ComponentType<{ className?: string }>;
   className?: string;
   size?: ComponentSize;
+  required?: boolean;
 }
 
 const sizeConfig: Record<ComponentSize, { label: string; field: string }> = {
@@ -40,6 +41,7 @@ export default function Input({
   Icon,
   className,
   size = "md",
+  required,
 }: InputProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -75,6 +77,7 @@ export default function Input({
           placeholder={placeholder}
           value={value}
           onChange={onChange}
+          required={required}
         />
 
         {isPassword && (

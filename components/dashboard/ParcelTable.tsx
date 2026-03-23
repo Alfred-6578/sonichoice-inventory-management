@@ -25,13 +25,12 @@ export default function ParcelTable({ type, data }: ParcelTableProps) {
       <Table.Head>
         <Table.Row>
           <Table.Cell head>Parcel ID</Table.Cell>
-          <Table.Cell head>Client</Table.Cell>
+          <Table.Cell head>Merchant</Table.Cell>
           <Table.Cell head>
             {type === "incoming" ? "From" : "Destination"}
           </Table.Cell>
           <Table.Cell head>Size</Table.Cell>
           <Table.Cell head>Status</Table.Cell>
-          <Table.Cell head>Fee</Table.Cell>
 
         </Table.Row>
       </Table.Head>
@@ -60,8 +59,6 @@ export default function ParcelTable({ type, data }: ParcelTableProps) {
                 status={row.status}
               />
             </Table.Cell>
-
-            <Table.Cell className="font-bold">{row.fee}</Table.Cell>
 
           </>
         )}

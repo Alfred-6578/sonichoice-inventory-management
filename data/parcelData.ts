@@ -15,7 +15,6 @@ export const parcelData: ParcelSectionData = {
       location: "Enugu HQ",
       size: "Large",
       status: "transit",
-      fee: "₦6,200",
       action: "Receive",
     },
     {
@@ -28,7 +27,6 @@ export const parcelData: ParcelSectionData = {
       location: "Nsukka Branch",
       size: "Medium",
       status: "transit",
-      fee: "₦7,500",
       action: "Receive",
     },
     {
@@ -41,7 +39,6 @@ export const parcelData: ParcelSectionData = {
       location: "Ebonyi Branch",
       size: "Small",
       status: "pending",
-      fee: "₦1,200",
       action: "Receive",
     },
     {
@@ -54,7 +51,6 @@ export const parcelData: ParcelSectionData = {
       location: "Enugu HQ",
       size: "Medium",
       status: "delivered",
-      fee: "₦5,000",
     },
   ],
 
@@ -69,7 +65,6 @@ export const parcelData: ParcelSectionData = {
       location: "Nsukka Branch",
       size: "Small",
       status: "pending",
-      fee: "₦1,800",
       action: "Dispatch",
     },
     {
@@ -82,7 +77,6 @@ export const parcelData: ParcelSectionData = {
       location: "Ebonyi Branch",
       size: "XL",
       status: "delivered",
-      fee: "₦6,200",
     },
     {
       id: "PCL-003",
@@ -94,7 +88,6 @@ export const parcelData: ParcelSectionData = {
       location: "Enugu HQ",
       size: "Small",
       status: "transit",
-      fee: "₦1,800",
       action: "Track",
     },
     {
@@ -107,7 +100,6 @@ export const parcelData: ParcelSectionData = {
       location: "Nsukka Branch",
       size: "Medium",
       status: "delivered",
-      fee: "₦5,000",
     },
     {
       id: "PCL-001",
@@ -119,7 +111,6 @@ export const parcelData: ParcelSectionData = {
       location: "Ebonyi Branch",
       size: "Large",
       status: "delivered",
-      fee: "₦3,500",
     },
   ],
 };
@@ -140,7 +131,6 @@ export const PARCELS: Parcel[] = [
     recipient: "Mrs. Folake Ojo",
     recipientPhone: "0801-555-1010",
     status: "transit",
-    fee: 6200,
     date: "2026-03-17",
     notes: "",
     history: [
@@ -163,7 +153,6 @@ export const PARCELS: Parcel[] = [
     recipient: "Alhaji Garba Musa",
     recipientPhone: "0808-222-6060",
     status: "transit",
-    fee: 7500,
     date: "2026-03-16",
     notes: "Fragile — handle with care",
     history: [
@@ -186,7 +175,6 @@ export const PARCELS: Parcel[] = [
     recipient: "Yusuf Lawan",
     recipientPhone: "0802-333-5050",
     status: "pending",
-    fee: 1800,
     date: "2026-03-15",
     notes: "",
     history: [
@@ -208,7 +196,6 @@ export const PARCELS: Parcel[] = [
     recipient: "Aisha Bello",
     recipientPhone: "0803-777-9090",
     status: "delivered",
-    fee: 4200,
     date: "2026-03-14",
     notes: "Delivered on time",
     history: [
@@ -230,7 +217,6 @@ export const PARCELS: Parcel[] = [
     recipient: "Adewale Ade",
     recipientPhone: "0804-666-8080",
     status: "transit",
-    fee: 3200,
     date: "2026-03-18",
     notes: "Handle with care",
     history: [

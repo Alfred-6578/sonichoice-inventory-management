@@ -44,7 +44,7 @@ export default function DetailPanel({ branch, onClose }: Props) {
     `₦${amount.toLocaleString()}`;
 
   return (
-    <div className="sm:w-[380px] w-full bg-surface-raised border-l border-[0.5px] border-border flex flex-col fixed top-0 z-50 right-0">
+    <div className="sm:w-100 h-full w-full bg-surface-raised border-l border-[0.5px] border-border flex flex-col fixed top-0 z-50 right-0">
       {/* HEADER */}
       <div className="p-[14px_18px] border-b border-[0.5px] border-border flex items-center gap-[10px]">
         <button
@@ -71,12 +71,6 @@ export default function DetailPanel({ branch, onClose }: Props) {
           <Metric label="Holding" value={branch.holding} sub="parcels on-site" />
           <Metric label="In Transit" value={branch.transit} sub="moving now" variant="amber" />
           <Metric label="Delivered" value={branch.delivered} sub="this month" variant="green" />
-          <Metric
-            label="Revenue"
-            value={formatMoney(branch.revenue)}
-            sub="this month"
-            small
-          />
         </div>
 
         {/* INFO */}

@@ -24,7 +24,6 @@ export interface ParcelItem {
 
   size: ParcelSize;
   status: ParcelStatus;
-  fee: string;
 
   action?: string; 
 }
@@ -36,9 +35,11 @@ export interface ParcelSectionData {
 
 export type Filters = {
   status: "all" | "transit" | "pending" | "delivered" | "cancelled";
-  search: string;
-  branch: string;
-  size: string;
+  search?: string;
+  branch?: string;
+  size?: string;
+  category?: string;
+  merchant?: string;
 };
 
 export type HistoryItem = {
@@ -57,7 +58,6 @@ export type Parcel = {
   to: string;
   current: string;
   status: ParcelStatus;
-  fee: number;
   date: string;
   notes?: string;
   client: string;
@@ -89,7 +89,6 @@ export type FormData = {
   to: string;
   recipient: string;
   recipientPhone: string;
-  fee: number;
   date: string;
   notes: string;
 };

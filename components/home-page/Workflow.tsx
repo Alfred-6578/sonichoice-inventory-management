@@ -20,7 +20,7 @@ const steps = [
     icon: Mail,
     title: "Client drops off",
     description:
-      "Client brings a parcel to any branch. Staff logs it with recipient details, size, and fee.",
+      "Client brings a parcel to any branch. Staff logs it with recipient details and size.",
   },
   {
     icon: Cpu,
@@ -38,7 +38,7 @@ const steps = [
     icon: Check,
     title: "Delivered",
     description:
-      "Handed to the recipient. Marked delivered. Full history recorded. Revenue counted.",
+      "Handed to the recipient. Marked delivered. Full history recorded.",
   },
 ];
 

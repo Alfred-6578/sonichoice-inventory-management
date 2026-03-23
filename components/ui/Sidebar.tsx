@@ -27,7 +27,7 @@ export default function Sidebar(
     { name: "Inventory", href: "/inventory", Icon: MdInventory2 },
   ];
 
-  const peopleItems = [{ name: "Clients", count: 4, href: "/clients", Icon: IoIosPeople }];
+  const peopleItems = [{ name: "Merchants", count: 4, href: "/merchants", Icon: IoIosPeople }];
 
   const adminItems = [
     { name: "User Management", count: 2, danger: true, href:"/user-management", Icon: MdPerson },

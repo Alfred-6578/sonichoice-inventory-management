@@ -22,11 +22,4 @@ export const metricsData: MetricItem[] = [
     tone: "neutral",
     delta: { type: "neutral", value: "—" },
   },
-  {
-    label: "Revenue",
-    value: "₦187k",
-    sub: "this month",
-    tone: "dark",
-    delta: { type: "positive", value: "↑ 12%" },
-  },
 ];

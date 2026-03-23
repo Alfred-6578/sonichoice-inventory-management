@@ -11,7 +11,7 @@ import { Parcel } from "@/types/parcelTypes";
 type Status = "transit" | "pending" | "delivered" | "cancelled";
 
 
-type SortKey = "id" | "size" | "fee" | "date";
+type SortKey = "id" | "size" | "date";
 
 type Props = {
   data: Parcel[];
@@ -95,21 +95,6 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
 
               <Table.Cell
                 head
-                className={`${sortKey === 'fee' && " text-ink-muted"} cursor-pointer`}
-                onClick={() => handleSort("fee")}
-              >
-                Fee
-                {sortKey === 'fee' ? (
-                  asc ? (
-                    <span className="text-[8px] ml-1 font-extrabold">↑</span>
-                  ) : (
-                    <span className="text-[8px] ml-1 font-extrabold">↓</span>
-                  )
-                ) : null}
-              </Table.Cell>
-
-              <Table.Cell
-                head
                 className={`${sortKey === 'date' && " text-ink-muted"} cursor-pointer`}
                 onClick={() => handleSort("date")}
               >
@@ -163,11 +148,6 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
                 <Table.Cell>
                  
                   <StatusBadge status={p.status}/>
-                </Table.Cell>
-
-                {/* Fee */}
-                <Table.Cell className="font-mono text-ink-2">
-                  ₦{p.fee.toLocaleString()}
                 </Table.Cell>
 
                 {/* Date */}

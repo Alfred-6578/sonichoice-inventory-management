@@ -44,7 +44,7 @@ const ParcelPage = () => {
       }
 
       // 2. SEARCH (ID, client, recipient, desc)
-      const search = filters.search.toLowerCase();
+      const search = filters?.search?.toLowerCase();
       if (
         search &&
         !(
