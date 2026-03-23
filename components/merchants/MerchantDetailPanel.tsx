@@ -13,6 +13,7 @@ const syne = Syne({
   subsets: ['latin']
 })
 
+
 export default function MerchantDetailPanel({ merchant, onClose }: MerchantDetailPanelProps) {
   if (!merchant) return null
 
