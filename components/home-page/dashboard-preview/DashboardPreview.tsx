@@ -96,7 +96,6 @@ export default function DashboardPreview() {
               initials="KA"
               color="#2563eb"
               status="Transit"
-              fee="₦6,200"
             />
 
             <TableRow
@@ -105,7 +104,6 @@ export default function DashboardPreview() {
               initials="NE"
               color="#7c3aed"
               status="Transit"
-              fee="₦7,500"
             />
 
             <TableRow
@@ -114,7 +112,6 @@ export default function DashboardPreview() {
               initials="TB"
               color="#059669"
               status="Pending"
-              fee="₦1,800"
             />
 
             <TableRow
@@ -123,7 +120,6 @@ export default function DashboardPreview() {
               initials="KA"
               color="#2563eb"
               status="Delivered"
-              fee="₦6,200"
             />
 
           </div>

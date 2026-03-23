@@ -31,7 +31,6 @@ export default function ParcelFormPanel({
     to: "",
     recipient: "",
     recipientPhone: "",
-    fee: 0,
     date: "",
     notes: "",
   });
@@ -194,16 +193,6 @@ export default function ParcelFormPanel({
         <Divider label="Charges" />
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Delivery Fee (₦)">
-            <Input
-              id="fee"
-              size="sm"
-              type="number"
-              value={form.fee}
-              onChange={(e) => handleChange("fee", e.target.value)}
-            />
-          </Field>
-
           <Field label="Date Received">
             <Input
               id="date"
@@ -221,7 +210,7 @@ export default function ParcelFormPanel({
             value={form.notes}
             onChange={(e) => handleChange("notes", e.target.value)}
             placeholder="e.g Fragile, handle with care, Call reciepient before delivery..."
-            className="input min-h-[80px] placeholder:text-ink-muted/70 placeholder:text-sm px-4 py-2 border border-border w-full rounded-lg outline-amber"
+            className="input min-h-[80px] text-ink text-sm placeholder:text-ink-muted/70 placeholder:text-sm px-4 py-2 border border-border w-full rounded-lg outline-amber"
           />
         </Field>
       </div>

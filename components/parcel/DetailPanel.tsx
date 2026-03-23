@@ -102,7 +102,6 @@ export default function DetailPanel({ parcel, onClose }: DetailPanelProps) {
         {/* DETAILS */}
         <Section title="Parcel Details">
           <Row label="Size" value={`${parcel.size}${parcel.weight ? ` · ${parcel.weight}` : ""}`} />
-          <Row label="Delivery fee" value={`₦${parcel.fee.toLocaleString()}`} mono />
           <Row label="Date received" value={parcel.date} mono />
           <Row label="Current location" value={parcel.current} />
 

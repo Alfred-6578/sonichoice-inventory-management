@@ -59,6 +59,5 @@ export interface BranchDetails {
   pending: number;
   maxHolding: number;
   parcels: Parcel[];
-  revenue: number;
   color: string;
 }
