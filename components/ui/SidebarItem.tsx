@@ -21,7 +21,7 @@ export default function SidebarItem({
 
 
       {badge && (
-        <span className="text-xs bg-[#fff9eb] text-[#d97706]  px-2 py-[2px] rounded max-lg:hidden">
+        <span className="text-xs bg-[#fff9eb] text-[#d97706]  px-2 py-[2px] rounded">
           {badge}
         </span>
       )}

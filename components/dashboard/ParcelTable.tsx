@@ -49,10 +49,10 @@ export default function ParcelTable({ type, data }: ParcelTableProps) {
                 />
             </Table.Cell>
 
-            <Table.Cell>{row.size}</Table.Cell>
+            <Table.Cell>{row.location}</Table.Cell>
 
-            <Table.Cell className="min-w-37">
-                <Tag label={row.location}/>
+            <Table.Cell className="">
+                <Tag label={row.size}/>
             </Table.Cell>
 
             <Table.Cell className="capitalize">

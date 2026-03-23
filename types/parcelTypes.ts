@@ -20,14 +20,13 @@ export interface ParcelItem {
   id: string;
   client: Client;
 
-  // dynamic meaning based on context
-  location: string; // "From" OR "Destination"
+  location: string; 
 
   size: ParcelSize;
   status: ParcelStatus;
   fee: string;
 
-  action?: string; // optional (Receive, Dispatch, Track)
+  action?: string; 
 }
 
 export interface ParcelSectionData {

@@ -30,10 +30,10 @@ export default function PageHeader({
     headerText?: string,
     subText?: string,
     mainText: string,
-    onButton1: ()=> void,
-    onButton2: ()=> void,
-    button1: string,
-    button2: string,
+    onButton1?: ()=> void,
+    onButton2?: ()=> void,
+    button1?: string,
+    button2?: string,
     button1Icon?: ReactNode
     button2Icon?: ReactNode
 }) {
@@ -64,11 +64,12 @@ export default function PageHeader({
       </div>
 
       {/* RIGHT ACTIONS */}
-      <div className="flex items-center gap-2">
+     { button1 || button2 ?
+        <div className="flex items-center gap-2">
 
         {/* MY BRANCH */}
 
-        <Button
+        {button1 && <Button
             size="sm"
             variant="secondary"
             onClick={onButton1}
@@ -77,7 +78,8 @@ export default function PageHeader({
             {button1Icon && button1Icon}
             {button1}
         </Button>
-        <Button
+        }
+        {button2 && <Button
             size="sm"
             onClick={onButton2}
             className="max-lg:w-full"
@@ -87,8 +89,11 @@ export default function PageHeader({
             </svg>
             {button2}
         </Button>
+        }
 
       </div>
+      : null
+      }
     </div>
   );
 }
