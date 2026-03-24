@@ -30,8 +30,8 @@ export default function Sidebar(
   const peopleItems = [{ name: "Merchants", count: 4, href: "/merchants", Icon: IoIosPeople }];
 
   const adminItems = [
-    { name: "User Management", count: 2, danger: true, href:"/user-management", Icon: MdPerson },
-    { name: "Settings", href: "/settings", Icon:MdSettings },
+    { name: "Staff Management", count: 2, danger: true, href:"/staff", Icon: MdPerson },
+    // { name: "Settings", href: "/settings", Icon:MdSettings },
   ];
 
   return (

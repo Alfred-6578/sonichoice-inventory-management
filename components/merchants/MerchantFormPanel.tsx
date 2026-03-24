@@ -82,15 +82,6 @@ export default function MerchantFormPanel({ isOpen, onClose, onSubmit }: Merchan
         />
 
         <Input
-          id="primary-contact"
-          label="Primary Contact"
-          value={formData.contact}
-          onChange={(e) => handleInputChange('contact', e.target.value)}
-          placeholder="Contact person name"
-          required
-        />
-
-        <Input
           id="phone-number"
           label="Phone Number"
           value={formData.phone}

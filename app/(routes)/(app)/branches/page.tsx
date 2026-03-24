@@ -3,8 +3,11 @@ import BranchGrid from '@/components/branches/BranchGrid';
 import DetailPanel from '@/components/branches/DetailPanel';
 import SummaryStrip from '@/components/branches/SummaryStrip'
 import PageHeader from '@/components/ui/PageHeader'
+import BranchFormPanel from '@/components/branches/BranchFormPanel'
+import Overlay from '@/components/ui/Overlay'
 import { BranchesDetails } from '@/data/branchesData';
 import React, { useEffect, useState } from 'react'
+import { Plus } from 'lucide-react'
 
 const stats = [
     {
@@ -33,6 +36,7 @@ const stats = [
 
 const BranchesPage = () => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [formOpen, setFormOpen] = useState(false);
 
     const selectedBranch = BranchesDetails.find(b => b.id === selectedId) || null;
 
@@ -43,6 +47,9 @@ const BranchesPage = () => {
                 headerText='Sonichoice Network · 3 locations'
                 mainText={'Branches'}
                 subText='18 parcels currently moving across the network · 2 branches with low-volume alerts'
+                button2='Add Branch'
+                onButton2={() => setFormOpen(true)}
+
             />
             <SummaryStrip stats={stats}/>
             <BranchGrid branches={BranchesDetails}  onSelect={setSelectedId} selectedId={selectedId}/>
@@ -53,6 +60,12 @@ const BranchesPage = () => {
                 />
             )}
          </div>
+        <Overlay isOpen={formOpen} onClose={() => setFormOpen(false)}/>
+
+         {formOpen && (
+             <BranchFormPanel isOpen={formOpen} onClose={() => setFormOpen(false)} />
+
+        )}
     </div>
   )
 }
