@@ -167,7 +167,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
           </div>
 
           {/* Product Name & SKU */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-1 gap-3 mb-4">
             <div>
               <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
                 Product Name
@@ -180,18 +180,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white font-sans text-sm text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5 placeholder-gray-400"
               />
             </div>
-            <div>
-              <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
-                SKU / Code
-              </label>
-              <input
-                type="text"
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                placeholder="e.g. IPH-15P-256"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white font-sans text-sm text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5 placeholder-gray-400"
-              />
-            </div>
+            
           </div>
 
           {/* Category & Unit */}
@@ -335,7 +324,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
           </div>
 
           {/* Storage Notes */}
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
               Storage Notes (optional)
             </label>
@@ -346,7 +335,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
               rows={3}
               className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white font-sans text-sm text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5 placeholder-gray-400 resize-none"
             />
-          </div>
+          </div> */}
         </form>
 
         {/* Footer */}
