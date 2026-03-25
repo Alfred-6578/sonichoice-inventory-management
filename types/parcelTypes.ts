@@ -78,17 +78,6 @@ export type FormDataProps = {
   isOpen: boolean;
   onClose: () => void;
   onSubmit?: (data: any) => void;
-};
-
-export type FormData = {
-  client: string;
-  desc: string;
-  size: string;
-  weight: string;
-  from: string;
-  to: string;
-  recipient: string;
-  recipientPhone: string;
-  date: string;
-  notes: string;
+  parcels?: Parcel[];
+  onBulkTransfer?: (parcelIds: string[], toBranch: string) => void;
 };
