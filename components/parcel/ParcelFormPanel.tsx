@@ -1,10 +1,11 @@
 "use client";
 
-import { FormData, FormDataProps } from "@/types/parcelTypes";
-import { useState } from "react";
+import { FormDataProps } from "@/types/parcelTypes";
+import { useMemo, useState } from "react";
 import Select from "../ui/Select";
-import Input from "../ui/Input";
 import { DM_Mono, Syne } from "next/font/google";
+import StatusBadge from "../ui/StatusBadge";
+import Tag from "../ui/Tag";
 
 const dm_mono = DM_Mono({
     variable:"--font-dm_mono",
@@ -17,31 +18,74 @@ const syne = Syne({
     subsets:["latin"]
 })
 
+const BRANCH_OPTIONS = [
+  { value: "Enugu (Head Office)", label: "Enugu (Head Office)" },
+  { value: "Nsukka", label: "Nsukka" },
+  { value: "Ebonyi", label: "Ebonyi" },
+];
+
 export default function ParcelFormPanel({
   isOpen,
   onClose,
-  onSubmit,
+  parcels = [],
+  onBulkTransfer,
 }: FormDataProps) {
-  const [form, setForm] = useState<FormData>({
-    client: "",
-    desc: "",
-    size: "",
-    weight: "",
-    from: "Enugu (Head Office)",
-    to: "",
-    recipient: "",
-    recipientPhone: "",
-    date: "",
-    notes: "",
-  });
+  const [fromBranch, setFromBranch] = useState("");
+  const [toBranch, setToBranch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const handleChange = (key: keyof FormData, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  // Parcels available for transfer: at the selected source branch, not delivered/cancelled
+  const transferableParcels = useMemo(() => {
+    if (!fromBranch) return [];
+    return parcels.filter(
+      (p) =>
+        p.current === fromBranch &&
+        (p.status === "transit" || p.status === "pending")
+    );
+  }, [parcels, fromBranch]);
+
+  // When source branch changes, reset selections
+  const handleFromBranchChange = (branch: string) => {
+    setFromBranch(branch);
+    setSelectedIds(new Set());
   };
 
-  const handleSubmit = () => {
-    onSubmit?.(form);
+  const toggleParcel = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === transferableParcels.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(transferableParcels.map((p) => p.id)));
+    }
+  };
+
+  const handleBulkTransfer = () => {
+    if (selectedIds.size === 0 || !toBranch) return;
+    onBulkTransfer?.(Array.from(selectedIds), toBranch);
+    setSelectedIds(new Set());
+    setFromBranch("");
+    setToBranch("");
     onClose();
+  };
+
+  // Destination options exclude the source branch
+  const destinationOptions = BRANCH_OPTIONS.filter(
+    (b) => b.value !== fromBranch
+  );
+
+  const resetAndClose = () => {
+    onClose();
+    setSelectedIds(new Set());
+    setFromBranch("");
+    setToBranch("");
   };
 
   return (
@@ -56,15 +100,15 @@ export default function ParcelFormPanel({
       <div className="p-4 border-b border-border flex items-center gap-3">
         <div>
           <div className={`text-[11px] font-mono text-ink-subtle uppercase tracking-wider mb-1 ${dm_mono.className}`}>
-            New Parcel
+            Parcels
           </div>
           <div className={`text-lg font-bold text-ink ${syne.className}`}>
-            Log a parcel
+            Log Parcels
           </div>
         </div>
 
         <button
-          onClick={onClose}
+          onClick={resetAndClose}
           className="ml-auto w-7 h-7 flex items-center justify-center rounded-md text-ink-subtle hover:bg-surface"
         >
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
@@ -75,160 +119,116 @@ export default function ParcelFormPanel({
 
       {/* BODY */}
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
-        {/* CLIENT */}
-        <Field label="Client / Sender">
+        {/* SOURCE BRANCH */}
+        <Field label="From Branch">
           <Select
-            id="client"
-            value={form.client}
+            id="transfer-from"
             size="sm"
-            onChange={(e) => handleChange("client", e.target.value)}
-            options={[
-              { value: "Kemi Adeyemi (Adeyemi Fashion)", label: "Kemi Adeyemi (Adeyemi Fashion)" },
-              { value: "Tunde Bakare", label: "Tunde Bakare" },
-              { value: "Ngozi Eze (EzeMart Electronics)", label: "Ngozi Eze (EzeMart Electronics)" },
-              { value: "Aliyu Musa (Musa Agro)", label: "Aliyu Musa (Musa Agro)" },
-            ]}
-            placeholder="— Select client —"
+            value={fromBranch}
+            onChange={(e) => handleFromBranchChange(e.target.value)}
+            options={BRANCH_OPTIONS}
+            placeholder="— Select source branch —"
           />
         </Field>
 
-        {/* DESC */}
-        <Field label="Parcel Description">
-          <Input
-            id="desc"
+        {/* DESTINATION BRANCH */}
+        <Field label="To Branch">
+          <Select
+            id="transfer-to"
             size="sm"
-            value={form.desc}
-            onChange={(e) => handleChange("desc", e.target.value)}
-            placeholder="e.g. Clothing bales..."
+            value={toBranch}
+            onChange={(e) => setToBranch(e.target.value)}
+            options={destinationOptions}
+            placeholder="— Select destination —"
           />
         </Field>
 
-        {/* SIZE + WEIGHT */}
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Size">
-            <Select
-              id="size"
-              size="sm"
-              value={form.size}
-              onChange={(e) => handleChange("size", e.target.value)}
-              options={[
-                { value: "Small", label: "Small (0–2kg)" },
-                { value: "Medium", label: "Medium (2–10kg)" },
-                { value: "Large", label: "Large (10–30kg)" },
-                { value: "XL", label: "XL (30kg+)" },
-              ]}
-              placeholder="Select size"
-            />
-          </Field>
+        <Divider label="Select Parcels" />
 
-          <Field label="Weight (optional)">
-            <Input
-              id="weight"
-              size="sm"
-              value={form.weight}
-              onChange={(e) => handleChange("weight", e.target.value)}
-              placeholder="e.g. 5kg"
-            />
-          </Field>
-        </div>
+        {/* PARCEL SELECTION LIST */}
+        {!fromBranch ? (
+          <div className="text-center py-8 text-ink-muted text-sm">
+            Select a source branch to see available parcels
+          </div>
+        ) : transferableParcels.length === 0 ? (
+          <div className="text-center py-8 text-ink-muted text-sm">
+            No transferable parcels at this branch
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* SELECT ALL */}
+            <button
+              onClick={toggleAll}
+              className={`w-full text-left text-xs font-bold uppercase tracking-wide px-3 py-2 rounded-lg border transition-colors ${
+                selectedIds.size === transferableParcels.length
+                  ? "bg-amber/10 border-amber text-amber-700"
+                  : "border-border text-ink-muted hover:bg-surface"
+              }`}
+            >
+              {selectedIds.size === transferableParcels.length
+                ? `Deselect all (${transferableParcels.length})`
+                : `Select all (${transferableParcels.length})`}
+            </button>
 
-        {/* BRANCHES */}
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Origin Branch">
-            <Select
-              id="from"
-              size="sm"
-              value={form.from}
-              onChange={(e) => handleChange("from", e.target.value)}
-              options={[
-                { value: "Enugu (Head Office)", label: "Enugu (Head Office)" },
-                { value: "Nsukka", label: "Nsukka" },
-                { value: "Ebonyi", label: "Ebonyi" },
-              ]}
-            />
-          </Field>
+            {/* PARCEL CARDS */}
+            {transferableParcels.map((p) => (
+              <label
+                key={p.id}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  selectedIds.has(p.id)
+                    ? "bg-amber/5 border-amber"
+                    : "border-border hover:bg-surface"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(p.id)}
+                  onChange={() => toggleParcel(p.id)}
+                  className="mt-1 accent-amber-600 w-4 h-4"
+                />
 
-          <Field label="Destination Branch">
-            <Select
-              id="to"
-              size="sm"
-              value={form.to}
-              onChange={(e) => handleChange("to", e.target.value)}
-              options={[
-                { value: "Enugu (Head Office)", label: "Enugu (Head Office)" },
-                { value: "Nsukka", label: "Nsukka" },
-                { value: "Ebonyi", label: "Ebonyi" },
-              ]}
-              placeholder="— Select —"
-            />
-          </Field>
-        </div>
-
-        {/* RECIPIENT */}
-        <Divider label="Recipient" />
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Recipient Name">
-            <Input
-              id="recipient"
-              size="sm"
-              value={form.recipient}
-              onChange={(e) => handleChange("recipient", e.target.value)}
-              placeholder="Who receives it"
-            />
-          </Field>
-
-          <Field label="Recipient Phone">
-            <Input
-              id="recipientPhone"
-              size="sm"
-              value={form.recipientPhone}
-              onChange={(e) => handleChange("recipientPhone", e.target.value)}
-              placeholder="0800-000-0000"
-            />
-          </Field>
-        </div>
-
-        {/* CHARGES */}
-        <Divider label="Charges" />
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Date Received">
-            <Input
-              id="date"
-              size="sm"
-              type="date"
-              value={form.date}
-              onChange={(e) => handleChange("date", e.target.value)}
-            />
-          </Field>
-        </div>
-
-        {/* NOTES */}
-        <Field label="Notes (optional)">
-          <textarea
-            value={form.notes}
-            onChange={(e) => handleChange("notes", e.target.value)}
-            placeholder="e.g Fragile, handle with care, Call reciepient before delivery..."
-            className="input min-h-[80px] text-ink text-sm placeholder:text-ink-muted/70 placeholder:text-sm px-4 py-2 border border-border w-full rounded-lg outline-amber"
-          />
-        </Field>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Tag label={p.id} />
+                    <StatusBadge status={p.status} />
+                  </div>
+                  <div className="text-sm font-medium text-ink truncate">
+                    {p.desc}
+                  </div>
+                  <div className="text-xs text-ink-muted mt-0.5">
+                    {p.client}
+                    {p.weight && ` · ${p.weight}`}
+                    {` · ${p.size}`}
+                  </div>
+                  <div className="text-xs text-ink-subtle mt-0.5">
+                    {p.from} → {p.to}
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* FOOTER */}
       <div className="p-4 border-t border-border flex gap-2">
         <button
-          onClick={onClose}
+          onClick={resetAndClose}
           className="px-4 py-2 border border-border rounded-lg text-ink-muted hover:bg-surface"
         >
           Cancel
         </button>
 
         <button
-          onClick={handleSubmit}
-          className="flex-1 px-4 py-2 bg-ink text-white rounded-lg font-bold"
+          onClick={handleBulkTransfer}
+          disabled={selectedIds.size === 0 || !toBranch}
+          className={`flex-1 px-4 py-2 rounded-lg font-bold transition-colors ${
+            selectedIds.size > 0 && toBranch
+              ? "bg-ink text-white"
+              : "bg-ink/30 text-white/60 cursor-not-allowed"
+          }`}
         >
-          Log Parcel
+          Transfer {selectedIds.size > 0 ? `${selectedIds.size} parcel${selectedIds.size > 1 ? "s" : ""}` : "parcels"}
         </button>
       </div>
     </div>

@@ -130,8 +130,9 @@ const ParcelPage = () => {
         <ParcelFormPanel
           isOpen={openForm}
           onClose={() => setOpenForm(false)}
-          onSubmit={(data) => {
-            console.log("NEW PARCEL:", data);
+          parcels={PARCELS}
+          onBulkTransfer={(ids, toBranch) => {
+            console.log("BULK TRANSFER:", { parcelIds: ids, toBranch });
           }}
         />
 
