@@ -22,7 +22,7 @@ export default function InventoryTable({
               <Table.Cell head>SKU</Table.Cell>
               <Table.Cell head>Item</Table.Cell>
               <Table.Cell head>Merchant</Table.Cell>
-              <Table.Cell head>Category</Table.Cell>
+              {/* <Table.Cell head>Category</Table.Cell> */}
               <Table.Cell head className="min-w-30">Stored At</Table.Cell>
               <Table.Cell head className="min-w-30">Total Stock</Table.Cell>
               <Table.Cell head >Date In</Table.Cell>
@@ -46,7 +46,7 @@ export default function InventoryTable({
                         name={item.merchant.name }
                     />
                 </Table.Cell>
-                <Table.Cell>{item.category}</Table.Cell>
+                {/* <Table.Cell>{item.category}</Table.Cell> */}
                 <Table.Cell className="flex flex-wrap gap-1 items-center">
                   {Object.entries(item.stock)
                     .filter(([, qty]) => qty != null && qty > 0)
