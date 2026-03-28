@@ -125,7 +125,8 @@ export default function MerchantsPage() {
       <PageHeader
         headerText={`Network · ${merchants.length} partners`}
         mainText="Merchants"
-        subText={loading ? 'Loading...' : `${activeMerchants} active merchants`}
+        subText={`${activeMerchants} active merchants`}
+        loading={loading}
         button1="Export"
         button1Icon={<Download size={16} />}
         onButton1={() => setShowExportMenu(!showExportMenu)}

@@ -28,19 +28,43 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
 
   if (data.accessToken) {
     localStorage.setItem("token", data.accessToken);
-    // Set cookie so middleware can read it server-side
     document.cookie = `token=${data.accessToken}; path=/; max-age=${60 * 60}; SameSite=Lax`;
+  }
+  if (data.refreshToken) {
+    localStorage.setItem("refreshToken", data.refreshToken);
   }
 
   return data;
 }
 
-export function logout() {
+export async function logout() {
+  try {
+    await api("/auth/logout", { method: "POST" });
+  } catch {
+    // Continue with local cleanup even if API call fails
+  }
   localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
-  // Clear the cookie
   document.cookie = "token=; path=/; max-age=0";
   window.location.href = "/login";
+}
+
+// ── Register (private — requires auth) ──
+
+export type RegisterPayload = {
+  email: string;
+  password: string;
+  name: string;
+  branchId: string;
+  role: "USER" | "ADMIN";
+};
+
+export async function registerUser(payload: RegisterPayload): Promise<void> {
+  await api("/auth/private/register", {
+    method: "POST",
+    body: payload,
+  });
 }
 
 export function getStoredUser() {

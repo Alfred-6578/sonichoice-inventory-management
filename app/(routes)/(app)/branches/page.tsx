@@ -135,7 +135,8 @@ const BranchesPage = () => {
             <PageHeader
                 headerText={`Sonichoice Network · ${branches.length} locations`}
                 mainText={'Branches'}
-                subText={loading ? 'Loading...' : `${branches.length} branches in the network`}
+                subText={`${branches.length} branches in the network`}
+                loading={loading}
                 button2='Add Branch'
                 onButton2={() => setFormOpen(true)}
             />

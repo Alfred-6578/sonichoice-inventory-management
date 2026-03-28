@@ -18,14 +18,16 @@ export interface ParcelTabsProps {
 
 export interface ParcelItem {
   id: string;
+  apiId?: string;
   client: Client;
+  merchants?: { name: string; initials: string; color: string }[];
 
-  location: string; 
+  location: string;
 
   size: ParcelSize;
   status: ParcelStatus;
 
-  action?: string; 
+  action?: string;
 }
 
 export interface ParcelSectionData {

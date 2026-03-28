@@ -9,7 +9,8 @@ import StatusPillsContainer from '@/components/ui/StatusPillsContainer'
 import { Filters, Parcel } from '@/types/parcelTypes'
 import { Download, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getParcels, exportParcels, ApiParcel } from '@/lib/parcels'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { getParcels, getParcel, exportParcels, ApiParcel } from '@/lib/parcels'
 import { getBranches } from '@/lib/branches'
 import { getMerchants } from '@/lib/merchants'
 
@@ -85,6 +86,9 @@ function mapApiParcel(p: ApiParcel): Parcel {
 }
 
 const ParcelPage = () => {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const hasAppliedParams = useRef(false)
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null)
   const [openForm, setOpenForm] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -97,6 +101,11 @@ const ParcelPage = () => {
   const [totalCount, setTotalCount] = useState(0)
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([])
   const [allMerchants, setAllMerchants] = useState<{ id: string; name: string }[]>([])
+  const allBranchesRef = useRef(allBranches)
+  const allMerchantsRef = useRef(allMerchants)
+  allBranchesRef.current = allBranches
+  allMerchantsRef.current = allMerchants
+
   const [filters, setFilters] = useState<Filters>({
     status: "all",
     search: "",
@@ -108,8 +117,8 @@ const ParcelPage = () => {
     setLoading(true)
     try {
       // Find branch ID from name for API call
-      const branchId = allBranches.find(b => b.name === filters.branch)?.id
-      const merchantId = allMerchants.find(m => m.name === filters.merchant)?.id
+      const branchId = allBranchesRef.current.find(b => b.name === filters.branch)?.id
+      const merchantId = allMerchantsRef.current.find(m => m.name === filters.merchant)?.id
 
       const res = await getParcels({
         page,
@@ -120,7 +129,7 @@ const ParcelPage = () => {
       })
       const raw = res.data || []
       setParcels(raw.map(mapApiParcel))
-      
+
       if (res.meta) {
         setTotalCount(res.meta.total)
         setTotalPages(res.meta.lastPage)
@@ -130,7 +139,7 @@ const ParcelPage = () => {
     } finally {
       setLoading(false)
     }
-  }, [page, filters.search, filters.status, filters.branch, filters.merchant, allBranches, allMerchants])
+  }, [page, filters.search, filters.status, filters.branch, filters.merchant])
 
   useEffect(() => {
     fetchParcels()
@@ -193,13 +202,38 @@ const ParcelPage = () => {
     }).catch(() => {})
   }, [])
 
+  // Handle parcelId query param (from dashboard click)
+  useEffect(() => {
+    if (hasAppliedParams.current || loading || parcels.length === 0) return
+
+    const parcelId = searchParams.get("parcelId")
+    if (parcelId) {
+      hasAppliedParams.current = true
+
+      // Try to find in current list first
+      const match = parcels.find(p => p.apiId === parcelId)
+      if (match) {
+        setSelectedParcel(match)
+      } else {
+        // Fetch directly if not on current page
+        getParcel(parcelId)
+          .then((full) => setSelectedParcel(mapApiParcel(full)))
+          .catch(() => {})
+      }
+
+      // Clean URL params without reload
+      router.replace("/parcels", { scroll: false })
+    }
+  }, [loading, parcels, searchParams])
+
   return (
     <div className='flex flex-col gap-6'>
 
         <PageHeader
             headerText={`${totalCount} parcels`}
             mainText={'Parcels'}
-            subText={loading ? 'Loading...' : `${counts.transit} in transit · ${counts.received} received`}
+            subText={`${counts.transit} in transit · ${counts.received} received`}
+            loading={loading}
             button1="Export"
             button1Icon={<Download/>}
             onButton1={() => setShowExportMenu(!showExportMenu)}
@@ -325,7 +359,7 @@ function ParcelTableSkeleton() {
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-white border-b border-gray-200">
-            {["Parcel ID", "Client", "Route", "Current Location", "Size", "Status", "Date In"].map((h) => (
+            {["Parcel ID", "Merchant", "Route", "Current Location", "Size", "Status", "Date In"].map((h) => (
               <th key={h} className="text-left px-3 py-2.5 text-xs font-medium text-gray-400 uppercase">{h}</th>
             ))}
           </tr>
@@ -353,4 +387,12 @@ function ParcelTableSkeleton() {
   )
 }
 
-export default ParcelPage
+import { Suspense } from "react"
+
+export default function ParcelPageWrapper() {
+  return (
+    <Suspense>
+      <ParcelPage />
+    </Suspense>
+  )
+}

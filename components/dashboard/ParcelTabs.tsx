@@ -3,7 +3,7 @@ import ParcelTable from "./ParcelTable";
 import { Parcel, ParcelTabsProps } from "@/types/parcelTypes";
 
 
-export default function ParcelTabs({ incoming, outgoing }: ParcelTabsProps) {
+export default function ParcelTabs({ incoming, outgoing, onParcelClick }: ParcelTabsProps & { onParcelClick?: (parcel: any) => void }) {
   const [tab, setTab] = useState("incoming");
 
   return (
@@ -38,9 +38,9 @@ export default function ParcelTabs({ incoming, outgoing }: ParcelTabsProps) {
       {/* CONTENT */}
       <div className="mt-2">
         {tab === "incoming" ? (
-          <ParcelTable type="incoming" data={incoming} />
+          <ParcelTable type="incoming" data={incoming} onParcelClick={onParcelClick} />
         ) : (
-          <ParcelTable type="outgoing" data={outgoing} />
+          <ParcelTable type="outgoing" data={outgoing} onParcelClick={onParcelClick} />
         )}
       </div>
     </>

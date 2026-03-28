@@ -247,7 +247,8 @@ const InventoryPage = () => {
         <PageHeader
             headerText={`Inventory · ${totalCount} products`}
             mainText={'Inventory'}
-            subText={loading ? 'Loading...' : `Showing ${filteredItems.length} of ${totalCount} products · Page ${page} of ${totalPages}`}
+            subText={`Showing ${filteredItems.length} of ${totalCount} products · Page ${page} of ${totalPages}`}
+            loading={loading}
             button1="Export"
             button1Icon={<Download/>}
             onButton1={() => setShowExportMenu(!showExportMenu)}

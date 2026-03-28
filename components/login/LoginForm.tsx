@@ -3,7 +3,6 @@ import React from 'react'
 import { Syne } from 'next/font/google'
 import {BiSolidLock, BiSolidEnvelope } from "react-icons/bi";
 import { BsArrowRight } from 'react-icons/bs';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -83,7 +82,7 @@ const LoginForm = () => {
                     />
                 </div>
 
-                <Link className='text-amber font-bold' href={'/forgot-password'}>Forgot Password?</Link>
+                {/* <Link className='text-amber font-bold' href={'/forgot-password'}>Forgot Password?</Link> */}
                 <Button
                     type="submit"
                     variant="primary"
@@ -96,16 +95,9 @@ const LoginForm = () => {
                 </Button>
             </form>
 
-            <div className="mt-10 flex items-center gap-2">
-                <div className="bg-ink-muted/20 h-[1px] w-[49%]"></div>
-                <p className="text-ink-muted/70 text-lg">or</p>
-                <div className="bg-ink-muted/20 h-[1px] w-[49%]"></div>
-            </div>
-
-            <div className="text-center mt-7">
-                <p className="text-ink-muted/80">
-                    No account yet?
-                    <Link href={'/'} className="font-bold text-ink-muted"> Request access from your admin</Link>
+            <div className="text-center mt-10">
+                <p className="text-ink-muted/80 text-sm">
+                    Don't have an account? Contact your administrator.
                 </p>
             </div>
         </div>
