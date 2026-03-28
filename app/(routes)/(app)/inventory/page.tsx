@@ -392,4 +392,12 @@ function InventoryTableSkeleton() {
   )
 }
 
-export default InventoryPage
+import { Suspense } from "react"
+
+export default function InventoryPageWrapper() {
+  return (
+    <Suspense>
+      <InventoryPage />
+    </Suspense>
+  )
+}
