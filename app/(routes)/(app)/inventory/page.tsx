@@ -8,6 +8,7 @@ import InventoryDetailPanel from "@/components/inventory/InventoryDetailPanel"
 import AddProductForm from "@/components/inventory/AddProductForm"
 import PageHeader from "@/components/ui/PageHeader"
 import { Download, Plus } from "lucide-react"
+import { useSearchParams, useRouter } from "next/navigation"
 import Overlay from "@/components/ui/Overlay"
 import { getProducts, getProduct, ApiProduct, exportProducts } from "@/lib/products"
 import { getBranches } from "@/lib/branches"
@@ -89,9 +90,12 @@ const configs: FilterConfig[] = [
 ]
 
 const InventoryPage = () => {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [selected, setSelected] = useState<InventoryItem | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const latestSelectId = useRef<string | null>(null)
+  const hasAppliedParams = useRef(false)
 
   const handleSelect = async (item: InventoryItem) => {
     const clickedId = item.id
@@ -191,6 +195,37 @@ const InventoryPage = () => {
     fetchProducts()
   }, [fetchProducts])
 
+  // Apply URL query params (from ProductListModal navigation)
+  useEffect(() => {
+    if (hasAppliedParams.current || loading || items.length === 0) return
+
+    const searchQuery = searchParams.get("search")
+    const productId = searchParams.get("productId")
+
+    if (searchQuery || productId) {
+      hasAppliedParams.current = true
+
+      if (searchQuery) {
+        setFilters((prev) => ({ ...prev, search: searchQuery }))
+      }
+
+      if (productId) {
+        const match = items.find((i) => i.id === productId)
+        if (match) {
+          handleSelect(match)
+        } else {
+          // Product might be on a different page, fetch it directly
+          getProduct(productId)
+            .then((full) => setSelected(mapApiProduct(full)))
+            .catch(() => {})
+        }
+      }
+
+      // Clean URL params without reload
+      router.replace("/inventory", { scroll: false })
+    }
+  }, [loading, items, searchParams])
+
   // Client-side filtering for category/merchant (API handles search + pagination)
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -225,10 +260,10 @@ const InventoryPage = () => {
         <div ref={exportRef} className="relative w-full right-0  inline-block self-start -mt-2 ">
         
           {showExportMenu && (
-            <div className="absolute -top-16 xsm:-top-3 md:-top-8 left-0 md:right-4 mt-1 bg-white border border-border rounded-lg shadow-lg z-20 min-w-36">
+            <div className="absolute max-md:left-0 -top-15 xsm:-top-3 md:-top-8 md:right-4 mt-1 bg-white border border-border rounded-lg shadow-lg z-20 ">
               <button
                 onClick={() => handleExport("pdf")}
-                className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition first:rounded-t-lg"
+                className="text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition first:rounded-t-lg"
               >
                 Export as PDF
               </button>
@@ -248,6 +283,7 @@ const InventoryPage = () => {
           onChange={(f) => handleFilterChange(f)}
           filterConfigs={configs}
           resetKeys={["search", "branch", "merchant"]}
+          disabled={loading}
         />
 
         {error && (

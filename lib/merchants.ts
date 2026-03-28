@@ -1,5 +1,29 @@
 import { api } from "./api";
 
+export type ApiMerchantStock = {
+  id: string;
+  quantity: number;
+  lowStockAlert: number;
+  branch?: {
+    id: string;
+    name: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+export type ApiMerchantProduct = {
+  id: string;
+  trackingId?: string;
+  name: string;
+  description?: string | null;
+  stocks?: ApiMerchantStock[];
+  dateReceived?: string | null;
+  additionalInfo?: string | null;
+  createdAt?: string;
+  [key: string]: unknown;
+};
+
 export type ApiMerchant = {
   id: string;
   name: string;
@@ -9,7 +33,7 @@ export type ApiMerchant = {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
-  products?: unknown[];
+  products?: ApiMerchantProduct[];
 };
 
 type MerchantsResponse = {
@@ -67,6 +91,34 @@ export async function updateMerchant(
   payload: UpdateMerchantPayload
 ): Promise<void> {
   await api(`/merchant/${id}`, { method: "PATCH", body: payload });
+}
+
+// ── Export ──
+
+export async function exportMerchants(format: "pdf" | "excel"): Promise<void> {
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  const res = await fetch(`${BASE_URL}/merchant/export/${format}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Export failed (${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const ext = format === "pdf" ? "pdf" : "xlsx";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `merchants-export.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ── Delete ──

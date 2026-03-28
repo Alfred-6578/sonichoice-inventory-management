@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import MerchantGrid from '@/components/merchants/MerchantGrid'
 import MerchantDetailPanel from '@/components/merchants/MerchantDetailPanel'
 import PageHeader from '@/components/ui/PageHeader'
 import FilterBar from '@/components/ui/FilterBar'
 import Overlay from '@/components/ui/Overlay'
 import MerchantFormPanel from '@/components/merchants/MerchantFormPanel'
-import { getMerchants, ApiMerchant } from '@/lib/merchants'
+import { getMerchants, exportMerchants, ApiMerchant } from '@/lib/merchants'
 import { MerchantProfile } from '@/types/merchants'
 import { Plus, Download } from 'lucide-react'
 
@@ -24,6 +24,23 @@ function mapApiMerchant(m: ApiMerchant): MerchantProfile {
     .slice(0, 2)
     .toUpperCase()
 
+  const products = (m.products || []).map((p) => {
+    const stocks = (p.stocks || []).map((s) => ({
+      branchName: s.branch?.name || "Unknown",
+      quantity: s.quantity || 0,
+    }))
+    return {
+      id: p.id,
+      trackingId: p.trackingId || p.id.slice(0, 8),
+      name: p.name,
+      description: p.description || "",
+      totalStock: stocks.reduce((sum, s) => sum + s.quantity, 0),
+      stocks,
+    }
+  })
+
+  const totalStock = products.reduce((sum, p) => sum + p.totalStock, 0)
+
   return {
     id: m.id,
     name: m.name,
@@ -34,16 +51,44 @@ function mapApiMerchant(m: ApiMerchant): MerchantProfile {
     email: m.email || "",
     status: (m.status?.toLowerCase() || "active") as "active" | "inactive" | "suspended",
     joinDate: m.createdAt || "",
-    totalProducts: Array.isArray(m.products) ? m.products.length : 0,
-    totalStock: 0,
+    totalProducts: products.length,
+    totalStock,
     pendingOrders: 0,
     averageRating: 0,
+    products,
   }
 }
 
 export default function MerchantsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!showExportMenu) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [showExportMenu])
+
+  const handleExport = async (format: "pdf" | "excel") => {
+    setShowExportMenu(false)
+    setExporting(true)
+    try {
+      await exportMerchants(format)
+    } catch (err) {
+      console.error("Export failed:", err)
+    } finally {
+      setExporting(false)
+    }
+  }
   const [merchants, setMerchants] = useState<MerchantProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<MerchantFilters>({
@@ -58,6 +103,8 @@ export default function MerchantsPage() {
         search: filters.search || undefined,
         status: filters.status !== 'all' ? filters.status.toUpperCase() : undefined,
       })
+      console.log(res);
+      
       setMerchants((res.data || []).map(mapApiMerchant))
     } catch (err) {
       console.error("Failed to fetch merchants:", err)
@@ -80,11 +127,32 @@ export default function MerchantsPage() {
         mainText="Merchants"
         subText={loading ? 'Loading...' : `${activeMerchants} active merchants`}
         button1="Export"
-        button2="Add Merchant"
         button1Icon={<Download size={16} />}
+        onButton1={() => setShowExportMenu(!showExportMenu)}
+        button2="Add Merchant"
         button2Icon={<Plus size={16} />}
         onButton2={() => setFormOpen(true)}
       />
+
+      {/* Export dropdown */}
+      <div ref={exportRef} className="relative w-full inline-block self-start -mt-2">
+        {showExportMenu && (
+          <div className="absolute max-md:left-0 -top-15 xsm:-top-3 md:-top-8 md:right-4 mt-1 bg-white border border-border rounded-lg shadow-lg z-20">
+            <button
+              onClick={() => handleExport("pdf")}
+              className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition first:rounded-t-lg"
+            >
+              Export as PDF
+            </button>
+            <button
+              onClick={() => handleExport("excel")}
+              className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition border-t border-border last:rounded-b-lg"
+            >
+              Export as Excel
+            </button>
+          </div>
+        )}
+      </div>
 
       <FilterBar
         filters={filters}
@@ -102,6 +170,7 @@ export default function MerchantsPage() {
           }
         ]}
         resetKeys={["search", "status"]}
+        disabled={loading}
       />
 
       {loading ? (

@@ -1,3 +1,17 @@
+export interface MerchantProductStock {
+  branchName: string
+  quantity: number
+}
+
+export interface MerchantProduct {
+  id: string
+  trackingId: string
+  name: string
+  description: string
+  totalStock: number
+  stocks: MerchantProductStock[]
+}
+
 export interface MerchantProfile {
   id: string
   name: string
@@ -12,6 +26,7 @@ export interface MerchantProfile {
   totalStock: number
   pendingOrders: number
   averageRating: number
+  products: MerchantProduct[]
 }
 
 export type MerchantFilters = {

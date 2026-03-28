@@ -22,15 +22,15 @@ export default function Sidebar(
   const pathname = usePathname();
   const navItems = [
     { name: "Dashboard", href: "/dashboard", Icon: MdDashboard },
-    { name: "Parcels", href: "/parcels", count: 9, Icon: BiSolidPackage },
+    { name: "Parcels", href: "/parcels", Icon: BiSolidPackage },
     { name: "Branches", href: "/branches", Icon: MdLocationOn },
     { name: "Inventory", href: "/inventory", Icon: MdInventory2 },
   ];
 
-  const peopleItems = [{ name: "Merchants", count: 4, href: "/merchants", Icon: IoIosPeople }];
+  const peopleItems = [{ name: "Merchants", href: "/merchants", Icon: IoIosPeople }];
 
   const adminItems = [
-    { name: "Staff Management", count: 2, danger: true, href:"/staff", Icon: MdPerson },
+    { name: "Staff Management", danger: true, href:"/staff", Icon: MdPerson },
     // { name: "Settings", href: "/settings", Icon:MdSettings },
   ];
 
@@ -77,7 +77,6 @@ export default function Sidebar(
               key={item.name}
               label={item.name}
               Icon={item.Icon ?? ""}
-              badge={item.count ? String(item.count) : undefined}
             />
           </Link>
         ))}
@@ -103,7 +102,6 @@ export default function Sidebar(
               key={item.name}
               label={item.name}
               Icon={item.Icon ?? ""}
-              badge={item.count ? String(item.count) : undefined}
             />
           </Link>
         ))}
@@ -130,7 +128,6 @@ export default function Sidebar(
                     key={item.name}
                     label={item.name}
                     Icon={item.Icon ?? ""}
-                    badge={item.count ? String(item.count) : undefined}
                   />
               </Link>
             ))}

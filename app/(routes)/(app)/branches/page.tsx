@@ -39,6 +39,21 @@ function mapApiBranch(b: ApiBranch): BranchDetails {
     status: "pending" as const,
   }))
 
+  // Map product stocks for detail panel
+  const products = (b.productStocks || []).map((s) => {
+    const merchant = (s.product as any)?.merchant;
+    return {
+      id: s.productId,
+      trackingId: s.product?.trackingId || s.productId.slice(0, 8),
+      name: s.product?.name || "Product",
+      description: (s.product?.description as string) || "",
+      quantity: s.quantity || 0,
+      lowStockAlert: s.lowStockAlert || 0,
+      merchantName: merchant?.name || "",
+      merchantColor: merchant?.color || "#374151",
+    };
+  })
+
   return {
     id: b.id,
     name: b.name,
@@ -58,6 +73,7 @@ function mapApiBranch(b: ApiBranch): BranchDetails {
     pending: b._count?.parcelsFrom || 0,
     maxHolding: Math.max(totalHolding, 10),
     parcels,
+    products,
     color: "#374151",
   }
 }
@@ -72,7 +88,7 @@ const BranchesPage = () => {
     setLoading(true)
     try {
       const data = await getBranches()
-      console.log(data);
+      
       
       setBranches(data.map(mapApiBranch))
     } catch (err) {

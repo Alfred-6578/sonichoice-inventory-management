@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Table } from "../ui/Table";
 import Tag from "../ui/Tag";
-import AvatarName from "../ui/AvatarName";
 import StatusBadge from "../ui/StatusBadge";
 import { Parcel } from "@/types/parcelTypes";
 
@@ -72,7 +71,7 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
                 ) : null}
               </Table.Cell>
 
-              <Table.Cell head className="min-w-37">Client</Table.Cell>
+              <Table.Cell head className="min-w-37">Merchant</Table.Cell>
               <Table.Cell head>Route</Table.Cell>
               <Table.Cell head>Current Location</Table.Cell>
 
@@ -119,15 +118,36 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
                   <Tag label={p.id}/>
                 </Table.Cell>
 
-                {/* Client */}
+                {/* Merchants */}
                 <Table.Cell>
-                
-                  <AvatarName 
-                    color={p.clientColor}
-                    initials={p.clientAv}
-                    name={p.client}
-                    company={p.clientCo}
-                  />
+                  {p.merchants && p.merchants.length > 0 ? (
+                    <div className="space-y-0.5">
+                      {p.merchants.slice(0, 2).map((m, i) => (
+                        <div key={m.name + i} className="flex items-center gap-1.5">
+                          <div
+                            className="w-5 h-5 rounded text-[9px] font-semibold flex items-center justify-center text-white shrink-0"
+                            style={{ backgroundColor: m.color || "#374151" }}
+                          >
+                            {m.initials}
+                          </div>
+                          <span className="text-[11px] text-ink truncate max-w-29">{m.name}</span>
+                        </div>
+                      ))}
+                      {p.merchants.length > 2 && (
+                        <span className="text-[10px] text-ink-subtle pl-6.5">+{p.merchants.length - 2} more</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="w-5 h-5 rounded text-[9px] font-semibold flex items-center justify-center text-white shrink-0"
+                        style={{ backgroundColor: p.clientColor || "#374151" }}
+                      >
+                        {p.clientAv}
+                      </div>
+                      <span className="text-[11px] text-ink truncate max-w-25">{p.client}</span>
+                    </div>
+                  )}
                 </Table.Cell>
 
                 {/* Route */}

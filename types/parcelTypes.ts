@@ -1,6 +1,6 @@
 // types/parcel.ts
 
-export type ParcelStatus = "transit" | "delivered" | "pending" | "cancelled";
+export type ParcelStatus = "transit" | "received" | "pending" | "cancelled" | "returned";
 
 export type ParcelSize = "Small" | "Medium" | "Large" | "XL";
 
@@ -34,11 +34,9 @@ export interface ParcelSectionData {
 }
 
 export type Filters = {
-  status: "all" | "transit" | "pending" | "delivered" | "cancelled";
+  status: "all" | "transit" | "pending" | "received" | "cancelled" | "returned";
   search?: string;
   branch?: string;
-  size?: string;
-  category?: string;
   merchant?: string;
 };
 
@@ -49,8 +47,26 @@ export type HistoryItem = {
   done: boolean;
 };
 
+export type ParcelProductItem = {
+  productId: string;
+  productName: string;
+  trackingId: string;
+  description: string;
+  quantity: number;
+  merchantId?: string;
+  merchantName?: string;
+  merchantColor?: string;
+};
+
+export type ParcelMerchant = {
+  name: string;
+  initials: string;
+  color: string;
+};
+
 export type Parcel = {
   id: string;
+  apiId: string;
   desc: string;
   size: string;
   weight?: string;
@@ -66,7 +82,12 @@ export type Parcel = {
   clientColor: string;
   recipient: string;
   recipientPhone: string;
+  fromBranchId?: string;
+  toBranchId?: string;
+  currentBranchId?: string;
+  merchants?: ParcelMerchant[];
   history?: HistoryItem[];
+  items?: ParcelProductItem[];
 };
 
 export type DetailPanelProps = {

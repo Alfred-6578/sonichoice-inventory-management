@@ -8,7 +8,9 @@ import { Syne } from "next/font/google";
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { updateBranch, deleteBranch } from "@/lib/branches";
+import { useRouter } from "next/navigation";
 import Input from "@/components/ui/Input";
+import ProductListModal, { ProductListItem } from "@/components/ui/ProductListModal";
 
 interface Props {
   branch: BranchDetails | null;
@@ -22,6 +24,8 @@ const syne = Syne({
 })
 
 export default function DetailPanel({ branch, onClose, onUpdated }: Props) {
+  const router = useRouter();
+  const [showAllProducts, setShowAllProducts] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -231,40 +235,94 @@ export default function DetailPanel({ branch, onClose, onUpdated }: Props) {
           ))}
         </Section>
 
-        {/* PARCELS */}
-        <Section title={`Current Parcels (${branch.parcels.length})`}>
-          {branch.parcels.length === 0 ? (
+        {/* PRODUCTS */}
+        <Section title={`Products (${branch.products.length})`}>
+          {branch.products.length === 0 ? (
             <div className="text-[13px] text-ink-subtle">
-              No parcels currently at this branch.
+              No products stocked at this branch.
             </div>
           ) : (
-            branch.parcels.map((p) => {
-              const st = getStatusStyles(p.status);
+            <div className="space-y-2">
+              {branch.products.slice(0, 3).map((p) => {
+                const isLowStock = p.quantity <= p.lowStockAlert && p.lowStockAlert > 0;
 
-              return (
-                <div key={p.id} className="flex items-center gap-[10px] py-[10px] border-b border-[0.5px] border-border last:border-b-0">
-                  <span className="font-m text-[10px] px-[7px] py-[2px] rounded-[4px] bg-surface border border-border text-ink-subtle">
-                    {p.id}
-                  </span>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-medium text-ink truncate">
-                      {p.desc}
+                return (
+                  <div
+                    key={p.id + p.trackingId}
+                    onClick={() => router.push(`/inventory?search=${encodeURIComponent(p.name)}&productId=${p.id}`)}
+                    className="border border-border rounded-lg overflow-hidden cursor-pointer hover:border-border-strong transition"
+                  >
+                    <div className="px-3 py-2.5 flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-medium text-ink truncate">{p.name}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {p.merchantName && (
+                            <span className="flex items-center gap-1 text-[10px] text-ink-muted">
+                              <span
+                                className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+                                style={{ backgroundColor: p.merchantColor || "#374151" }}
+                              />
+                              {p.merchantName}
+                            </span>
+                          )}
+                          {p.description && (
+                            <span className="text-[11px] text-ink-subtle truncate">
+                              {p.merchantName ? "·" : ""} {p.description}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface border border-border text-ink-subtle shrink-0">
+                        {p.trackingId}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-ink-subtle">
-                      {p.client}
+
+                    <div className="border-t border-border bg-gray-50/50 px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] font-mono font-medium text-ink">{p.quantity} units</span>
+                        {isLowStock && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 font-m">
+                            Low stock
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-ink-subtle">
+                        Alert: {p.lowStockAlert}
+                      </span>
                     </div>
                   </div>
+                );
+              })}
 
-                  <span className={`inline-flex items-center gap-[4px] px-[7px] py-[2px] rounded-[4px] text-[10px] font-m border ${st.wrapper}`}>
-                    <span className={`w-[4px] h-[4px] rounded-full ${st.dot}`} />
-                    {st.label}
-                  </span>
-                </div>
-              );
-            })
+              {branch.products.length > 3 && (
+                <button
+                  onClick={() => setShowAllProducts(true)}
+                  className="w-full py-2.5 text-xs font-medium text-amber-600 hover:text-amber-700 border border-border rounded-lg hover:bg-surface transition"
+                >
+                  View all {branch.products.length} products
+                </button>
+              )}
+            </div>
           )}
         </Section>
+
+        <ProductListModal
+          isOpen={showAllProducts}
+          onClose={() => setShowAllProducts(false)}
+          title={branch.name}
+          subtitle={`${branch.products.length} products · ${branch.holding} total units`}
+          variant="branch"
+          products={branch.products.map((p): ProductListItem => ({
+            id: p.id,
+            trackingId: p.trackingId,
+            name: p.name,
+            description: p.description,
+            quantity: p.quantity,
+            lowStockAlert: p.lowStockAlert,
+            merchantName: p.merchantName,
+            merchantColor: p.merchantColor,
+          }))}
+        />
       </div>
 
       {/* DELETE CONFIRMATION */}

@@ -14,7 +14,8 @@ export const MERCHANTS: MerchantProfile[] = [
     totalProducts: 2,
     totalStock: 280,
     pendingOrders: 3,
-    averageRating: 4.8
+    averageRating: 4.8,
+    products: []
   },
   {
     id: 'MRH-002',
@@ -29,7 +30,8 @@ export const MERCHANTS: MerchantProfile[] = [
     totalProducts: 2,
     totalStock: 93,
     pendingOrders: 1,
-    averageRating: 4.6
+    averageRating: 4.6,
+    products: []
   },
   {
     id: 'MRH-003',
@@ -44,7 +46,8 @@ export const MERCHANTS: MerchantProfile[] = [
     totalProducts: 3,
     totalStock: 440,
     pendingOrders: 5,
-    averageRating: 4.7
+    averageRating: 4.7,
+    products: []
   },
   {
     id: 'MRH-004',
@@ -59,7 +62,8 @@ export const MERCHANTS: MerchantProfile[] = [
     totalProducts: 2,
     totalStock: 680,
     pendingOrders: 2,
-    averageRating: 4.9
+    averageRating: 4.9,
+    products: []
   },
   {
     id: 'MRH-005',
@@ -74,7 +78,8 @@ export const MERCHANTS: MerchantProfile[] = [
     totalProducts: 1,
     totalStock: 1150,
     pendingOrders: 4,
-    averageRating: 4.5
+    averageRating: 4.5,
+    products: []
   },
   {
     id: 'MRH-006',
@@ -89,6 +94,7 @@ export const MERCHANTS: MerchantProfile[] = [
     totalProducts: 2,
     totalStock: 662,
     pendingOrders: 2,
-    averageRating: 4.4
+    averageRating: 4.4,
+    products: []
   }
 ]
