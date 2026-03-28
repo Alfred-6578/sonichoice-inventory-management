@@ -29,25 +29,46 @@ export type ApiBranch = {
   [key: string]: unknown;
 };
 
+export type ApiStock = {
+  id?: string;
+  productId?: string;
+  branchId?: string;
+  quantity?: number;
+  lowStockAlert?: number;
+  branch?: ApiBranch;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+};
+
 export type ApiProduct = {
   id: string;
+  trackingId?: string;
   name: string;
-  description?: string;
+  description?: string | null;
   quantity?: number;
   merchantId?: string;
   branchId?: string;
-  dateReceived?: string;
-  additionalInfo?: string;
+  dateReceived?: string | null;
+  additionalInfo?: string | null;
   createdAt?: string;
   updatedAt?: string;
   merchant?: ApiMerchant;
   branch?: ApiBranch;
+  stocks?: ApiStock[];
   [key: string]: unknown;
+};
+
+export type ProductsMeta = {
+  total: number;
+  page: number;
+  lastPage: number;
 };
 
 export type ProductsResponse = {
   products?: ApiProduct[];
   data?: ApiProduct[];
+  meta?: ProductsMeta;
   total?: number;
   totalPages?: number;
   page?: number;
@@ -103,13 +124,19 @@ export async function createProduct(
   });
 }
 
+// ── Delete ──
+
+export async function deleteProduct(id: string): Promise<void> {
+  await api(`/products/${id}`, { method: "DELETE" });
+}
+
 // ── Update ──
 
 export type UpdateProductPayload = {
   name?: string;
-  quantity?: number;
   description?: string;
   additionalInfo?: string;
+  branches?: BranchEntry[];
 };
 
 export async function updateProduct(
@@ -120,4 +147,32 @@ export async function updateProduct(
     method: "PATCH",
     body: payload,
   });
+}
+
+// ── Export ──
+
+export async function exportProducts(format: "pdf" | "excel"): Promise<void> {
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  const res = await fetch(`${BASE_URL}/products/export/${format}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Export failed (${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const ext = format === "pdf" ? "pdf" : "xlsx";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `products-export.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

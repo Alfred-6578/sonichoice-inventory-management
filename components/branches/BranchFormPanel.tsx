@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { Syne } from 'next/font/google'
+import { createBranch } from '@/lib/branches'
 
 interface BranchFormData {
   name: string
@@ -24,7 +25,7 @@ interface BranchFormData {
 interface BranchFormPanelProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit?: (formData: BranchFormData) => void
+  onSubmit?: (formData: any) => void
 }
 
 const syne = Syne({
@@ -57,9 +58,44 @@ export default function BranchFormPanel({ isOpen, onClose, onSubmit }: BranchFor
     isHead: false
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit?.(formData)
+
+    if (!formData.name || !formData.address || !formData.city || !formData.state) {
+      setError('Name, address, city, and state are required.')
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setLoading(true)
+
+    try {
+      const result = await createBranch({
+        name: formData.name,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        phone: formData.phone,
+        email: formData.email,
+        country: "Nigeria",
+      })
+      setSuccess(`"${result.name}" has been added successfully!`)
+      setFormData({
+        name: '', city: '', state: '', address: '', phone: '', email: '',
+        manager: '', managerAv: '', managerColor: '#2563eb', maxHolding: 10,
+        color: '#2563eb', isHead: false,
+      })
+      onSubmit?.(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create branch')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (field: keyof BranchFormData, value: string | number | boolean) => {
@@ -96,6 +132,17 @@ export default function BranchFormPanel({ isOpen, onClose, onSubmit }: BranchFor
 
       {/* Body */}
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+        {success && (
+          <div className="px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
         <Input
           id="branch-name"
           label="Branch Name"
@@ -194,8 +241,8 @@ export default function BranchFormPanel({ isOpen, onClose, onSubmit }: BranchFor
         </div>
 
         <div className="pt-4 border-t border-border">
-          <Button type="submit" className="w-full">
-            Add Branch
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? 'Adding...' : 'Add Branch'}
           </Button>
         </div>
       </form>

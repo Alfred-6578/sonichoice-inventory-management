@@ -65,7 +65,7 @@ export default function PageHeader({
 
       {/* RIGHT ACTIONS */}
      { button1 || button2 ?
-        <div className="flex items-center gap-2">
+        <div className="flex max-xsm:flex-col items-center gap-2">
 
         {/* MY BRANCH */}
 

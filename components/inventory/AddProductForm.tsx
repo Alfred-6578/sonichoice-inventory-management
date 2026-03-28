@@ -28,6 +28,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
   const [merchantId, setMerchantId] = useState('')
   const [description, setDescription] = useState('')
   const [additionalInfo, setAdditionalInfo] = useState('')
+  const [dateReceived, setDateReceived] = useState('')
   const [branchEntries, setBranchEntries] = useState<BranchStock[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -41,7 +42,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
     if (isOpen) {
       setLoadingData(true)
       Promise.all([
-        merchants.length === 0 ? getMerchants() : Promise.resolve(merchants),
+        merchants.length === 0 ? getMerchants().then(res => res.data || []) : Promise.resolve(merchants),
         branches.length === 0 ? getBranches() : Promise.resolve(branches),
       ])
         .then(([m, b]) => {
@@ -62,6 +63,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
     setMerchantId('')
     setDescription('')
     setAdditionalInfo('')
+    setDateReceived('')
     setBranchEntries(branches.length > 0 ? [{ branchId: branches[0].id, quantity: 0, lowStockAlert: 10 }] : [])
     setError('')
     setSuccess('')
@@ -109,11 +111,11 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
         name: productName,
         merchantId,
         description: description || undefined,
+        dateReceived: dateReceived ? new Date(dateReceived).toISOString() : undefined,
         additionalInfo: additionalInfo || undefined,
         branches: validBranches,
       })
 
-      console.log('Product created:', result)
       setSuccess(`"${productName}" has been added successfully!`)
       resetForm()
       onSubmit?.(result)
@@ -221,6 +223,19 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. 256GB Space White"
               className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white font-sans text-sm text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5 placeholder-gray-400"
+            />
+          </div>
+
+          {/* Date Received */}
+          <div className="mb-4">
+            <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
+              Date Received (optional)
+            </label>
+            <input
+              type="date"
+              value={dateReceived}
+              onChange={(e) => setDateReceived(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white font-sans text-sm text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5"
             />
           </div>
 
