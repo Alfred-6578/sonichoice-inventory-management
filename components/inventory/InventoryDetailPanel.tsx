@@ -1,7 +1,11 @@
+"use client"
+
 import { InventoryItem } from "@/types/inventory"
 import { BRANCHES_LIST } from "@/data/inventoryData"
-import { X } from "lucide-react"
+import { X, Pencil } from "lucide-react"
 import { DM_Mono, Syne } from "next/font/google"
+import { useState } from "react"
+import { updateProduct } from "@/lib/products"
 
 const syne = Syne({
     variable: "--font-syne",
@@ -15,13 +19,50 @@ const dm_mono = DM_Mono({
 
 export default function InventoryDetailPanel({
   item,
-  onClose
+  onClose,
+  onUpdated
 }: {
   item: InventoryItem | null
   onClose: () => void
+  onUpdated?: () => void
 }) {
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState("")
+  const [editQty, setEditQty] = useState(0)
+  const [editDesc, setEditDesc] = useState("")
+  const [editNotes, setEditNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
 
   if (!item) return null
+
+  const startEdit = () => {
+    setEditName(item.name)
+    setEditQty(item.totalQty)
+    setEditDesc(item.category)
+    setEditNotes(item.notes)
+    setError("")
+    setEditing(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError("")
+    try {
+      await updateProduct(item.id, {
+        name: editName,
+        quantity: editQty,
+        description: editDesc || undefined,
+        additionalInfo: editNotes || undefined,
+      })
+      setEditing(false)
+      onUpdated?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const totalQty = item.totalQty
   const dispatched = item.history.filter(h => h.type === 'out').reduce((s, h) => {
@@ -84,10 +125,84 @@ export default function InventoryDetailPanel({
           <div className="font-mono text-xs text-gray-400 px-1.75 py-0.5 bg-gray-100 border border-gray-200 rounded inline-block mb-0.75">{item.sku}</div>
           <div className={`font-display capitalize text-3.75 font-bold text-gray-900 letter-spacing-tighter leading-5 ${syne.className}`}>{item.name}</div>
         </div>
+        {!editing && (
+          <button
+            onClick={startEdit}
+            className="w-7 h-7 rounded-md border-none bg-transparent cursor-pointer flex items-center justify-center text-gray-400 flex-shrink-0 transition-all hover:bg-gray-100 hover:text-gray-900"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        
+
+        {/* Edit Form */}
+        {editing && (
+          <div className="px-4.5 py-4 border-b border-gray-200 space-y-3">
+            <div className="font-mono text-xs text-gray-400 uppercase letter-spacing-wider mb-1">Edit Product</div>
+            {error && (
+              <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                {error}
+              </div>
+            )}
+            <div>
+              <label className="block font-mono text-[10px] text-gray-400 uppercase mb-1">Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] text-gray-400 uppercase mb-1">Quantity</label>
+              <input
+                type="number"
+                min="0"
+                value={editQty}
+                onChange={(e) => setEditQty(parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] text-gray-400 uppercase mb-1">Description</label>
+              <input
+                type="text"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] text-gray-400 uppercase mb-1">Additional Info</label>
+              <textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-gray-900 resize-none"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditing(false)}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className={`flex-1 px-3 py-1.5 text-xs rounded-lg text-white font-bold ${
+                  saving ? 'bg-gray-400' : 'bg-gray-900 hover:bg-gray-800'
+                }`}
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="px-4.5 py-4 border-b border-gray-200">
           <div className="grid grid-cols-3 gap-0 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden mb-3">
             <div className="px-3.5 py-3 text-center border-r border-gray-200">
@@ -122,10 +237,10 @@ export default function InventoryDetailPanel({
               <span className="text-xs text-gray-500">SKU</span>
               <span className="text-xs text-gray-900 font-medium font-mono">{item.sku}</span>
             </div>
-            <div className="flex justify-between items-center px-3.25 py-2.25 border-b border-gray-200">
+            {/* <div className="flex justify-between items-center px-3.25 py-2.25 border-b border-gray-200">
               <span className="text-xs text-gray-500">Category</span>
               <span className="text-xs text-gray-900 font-medium">{item.category}</span>
-            </div>
+            </div> */}
             <div className="flex justify-between items-center px-3.25 py-2.25 border-b border-gray-200">
               <span className="text-xs text-gray-500">Unit</span>
               <span className="text-xs text-gray-900 font-medium">{item.unit}</span>

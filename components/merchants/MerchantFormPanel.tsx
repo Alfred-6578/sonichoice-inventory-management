@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { Syne } from 'next/font/google'
+import { createMerchant } from '@/lib/merchants'
 
 interface MerchantFormData {
   name: string
@@ -17,7 +18,7 @@ interface MerchantFormData {
 interface MerchantFormPanelProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit?: (formData: MerchantFormData) => void
+  onSubmit?: (formData: any) => void
 }
 
 const syne = Syne({
@@ -39,9 +40,39 @@ export default function MerchantFormPanel({ isOpen, onClose, onSubmit }: Merchan
     color: '#2563eb'
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit?.(formData)
+
+    if (!formData.name || !formData.email || !formData.phone) {
+      setError('Name, email, and phone are required.')
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setLoading(true)
+
+    try {
+      const result = await createMerchant({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        color: formData.color,
+        status: "ACTIVE"
+      })
+      console.log('Merchant created:', result)
+      setSuccess(`"${result.name}" has been added successfully!`)
+      setFormData({ name: '', contact: '', phone: '', email: '', color: '#2563eb' })
+      onSubmit?.(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create merchant')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (field: keyof MerchantFormData, value: string) => {
@@ -72,6 +103,18 @@ export default function MerchantFormPanel({ isOpen, onClose, onSubmit }: Merchan
 
       {/* Body */}
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+        {success && (
+          <div className="px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+            {success}
+          </div>
+        )}
+
+        {error && (
+          <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
         <Input
           id="merchant-name"
           label="Merchant Name"
@@ -118,8 +161,8 @@ export default function MerchantFormPanel({ isOpen, onClose, onSubmit }: Merchan
         </div>
 
         <div className="pt-4 border-t border-border">
-          <Button type="submit" className="w-full">
-            Add Merchant
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? 'Adding...' : 'Add Merchant'}
           </Button>
         </div>
       </form>
