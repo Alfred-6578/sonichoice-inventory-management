@@ -1,12 +1,13 @@
 'use client'
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import SidebarItem from "./SidebarItem";
 import Link from "next/link";
 import { MdDashboard, MdInventory2, MdLocationOn, MdPerson, MdSettings } from "react-icons/md";
 import { BiSolidPackage } from "react-icons/bi";
 import { IoIosPeople } from "react-icons/io";
-import { X } from "lucide-react";
+import { X, LogOut } from "lucide-react";
+import { logout, getStoredUser } from "@/lib/auth";
 
 export default function Sidebar(
   {
@@ -18,6 +19,21 @@ export default function Sidebar(
   }
 ) {
   const [role, setRole] = useState("staff");
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    const stored = getStoredUser();
+    if (stored) {
+      setUser(stored);
+      if (stored.role === "ADMIN" || stored.role === "admin") setRole("admin");
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await logout();
+  };
 
   const pathname = usePathname();
   const navItems = [
@@ -162,19 +178,30 @@ export default function Sidebar(
 
       {/* USER */}
       <div className="p-3 border-t border-[#e4e7ec]">
-        <div className="flex items-center gap-2 p-2 rounded-md hover:bg-[#f4f5f7] cursor-pointer">
+        <div className="flex items-center gap-2 p-2 rounded-md">
           <div className="w-8 h-8 bg-[#111827] text-[#f59e0b] flex items-center justify-center rounded-md text-xs font-bold">
-            EO
+            {user?.name
+              ? user.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+              : "??"}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-[#111827] truncate">
-              Emeka Okafor
+              {user?.name || "User"}
             </div>
-            <div className="text-[10px] text-[#9ca3af]">
-              {role === "admin" ? "Admin" : "Staff"} · Enugu
+            <div className="text-[10px] text-[#9ca3af] capitalize">
+              {role === "admin" ? "Admin" : "Staff"}
             </div>
           </div>
+
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-7 h-7 rounded-md flex items-center justify-center text-[#9ca3af] hover:bg-red-50 hover:text-red-500 transition shrink-0"
+            title="Logout"
+          >
+            <LogOut className="w-5.5 h-5.5" />
+          </button>
         </div>
       </div>
     </aside>

@@ -4,9 +4,10 @@ import { ParcelSectionData } from "@/types/parcelTypes";
 
 interface ParcelSectionProps {
   data: ParcelSectionData;
+  onParcelClick?: (parcel: any) => void;
 }
 
-export default function ParcelSection({ data }: ParcelSectionProps) {
+export default function ParcelSection({ data, onParcelClick }: ParcelSectionProps) {
   const { incoming, outgoing } = data;
 
   return (
@@ -27,7 +28,7 @@ export default function ParcelSection({ data }: ParcelSectionProps) {
 
       {/* CARD */}
       <div className="bg-white border border-[#e4e7ec] rounded-xl overflow-hidden">
-        <ParcelTabs incoming={incoming} outgoing={outgoing} />
+        <ParcelTabs incoming={incoming} outgoing={outgoing} onParcelClick={onParcelClick} />
       </div>
     </div>
   );

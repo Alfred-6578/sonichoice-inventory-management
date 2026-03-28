@@ -25,7 +25,8 @@ export default function PageHeader({
   button1,
   button2,
   button1Icon,
-  button2Icon
+  button2Icon,
+  loading = false,
 }:{
     headerText?: string,
     subText?: string,
@@ -36,19 +37,17 @@ export default function PageHeader({
     button2?: string,
     button1Icon?: ReactNode
     button2Icon?: ReactNode
+    loading?: boolean
 }) {
-  
-  // Better plural handling (UX polish)
-  
 
   return (
     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
       {/* LEFT */}
       <div className="min-w-0">
-        {headerText &&
+        {headerText !== undefined &&
             <div className={`text-xs text-[#9ca3af] mb-1 truncate uppercase ${dm_mono.className}`}>
-                {headerText}
+                {loading ? <div className="h-3 w-28 bg-gray-200 rounded animate-pulse" /> : headerText}
             </div>
         }
 
@@ -56,9 +55,9 @@ export default function PageHeader({
           {mainText}
         </h1>
 
-       {subText && 
+        {subText !== undefined &&
             <p className="text-sm text-[#6b7280] mt-1">
-                {subText}
+                {loading ? <span className="inline-block h-3.5 w-44 bg-gray-200 rounded animate-pulse align-middle" /> : subText}
             </p>
         }
       </div>
