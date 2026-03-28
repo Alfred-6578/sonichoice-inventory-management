@@ -6,131 +6,305 @@ import FilterBar from '@/components/ui/FilterBar'
 import Overlay from '@/components/ui/Overlay'
 import PageHeader from '@/components/ui/PageHeader'
 import StatusPillsContainer from '@/components/ui/StatusPillsContainer'
-import StatusPills from '@/components/ui/StatusPillsContainer'
-import { PARCELS } from '@/data/parcelData'
 import { Filters, Parcel } from '@/types/parcelTypes'
 import { Download, Plus } from 'lucide-react'
-import React, { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { getParcels, exportParcels, ApiParcel } from '@/lib/parcels'
+import { getBranches } from '@/lib/branches'
+import { getMerchants } from '@/lib/merchants'
+
+function mapApiParcel(p: ApiParcel): Parcel {
+  // Build unique merchant list from the merchants array or items
+  const allMerchantsList = (p.merchants || (p.merchant ? [p.merchant] : [])).map((m) => ({
+    name: m.name,
+    initials: m.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(),
+    color: m.color || "#374151",
+  }))
+
+  // Deduplicate by name
+  const seen = new Set<string>()
+  const uniqueMerchants = allMerchantsList.filter((m) => {
+    if (seen.has(m.name)) return false
+    seen.add(m.name)
+    return true
+  })
+
+  const merchant = p.merchants?.[0] || p.merchant
+  const merchantName = merchant?.name || "Unknown"
+  const initials = merchantName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+
+  // Build description from items
+  const desc = p.items && p.items.length > 0
+    ? p.items.map(i => `${i.product?.name || "Item"} x${i.quantity}`).join(", ")
+    : "Parcel"
+
+  const statusMap: Record<string, Parcel["status"]> = {
+    PENDING: "pending",
+    IN_TRANSIT: "transit",
+    RECEIVED: "received",
+    CANCELLED: "cancelled",
+    RETURNED: "returned",
+  }
+
+  return {
+    id: p.trackingNumber,
+    apiId: p.id,
+    desc,
+    size: p.size || "Medium",
+    from: p.fromBranch?.name || "",
+    to: p.toBranch?.name || "",
+    current: p.currentBranch?.name || "",
+    status: statusMap[p.status] || "pending",
+    date: p.dateShipped ? new Date(p.dateShipped).toISOString().split("T")[0] : p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : "",
+    notes: p.additionalInfo || "",
+    client: merchantName,
+    clientCo: "",
+    clientAv: initials,
+    clientColor: merchant?.color || "#374151",
+    recipient: "",
+    recipientPhone: "",
+    merchants: uniqueMerchants,
+    fromBranchId: p.fromBranchId,
+    toBranchId: p.toBranchId,
+    currentBranchId: p.currentBranchId,
+    history: [],
+    items: (p.items || []).map((i) => {
+      const productMerchant = (i.product as any)?.merchant;
+      return {
+        productId: i.productId,
+        productName: i.product?.name || "Product",
+        trackingId: i.product?.trackingId || i.productId.slice(0, 8),
+        description: (i.product?.description as string) ?? "",
+        quantity: i.quantity,
+        merchantId: productMerchant?.id || (i.product?.merchantId as string) || "",
+        merchantName: productMerchant?.name || "",
+        merchantColor: productMerchant?.color || "#374151",
+      };
+    }),
+  }
+}
 
 const ParcelPage = () => {
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null)
-  const [openForm, setOpenForm] = useState(false);
+  const [openForm, setOpenForm] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
+  const [parcels, setParcels] = useState<Parcel[]>([])
+  const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([])
+  const [allMerchants, setAllMerchants] = useState<{ id: string; name: string }[]>([])
   const [filters, setFilters] = useState<Filters>({
     status: "all",
     search: "",
     branch: "",
-    size: "",
-  });
+    merchant: "",
+  })
 
-  const updateFilters = (updates: Partial<Filters>) => {
-    setFilters((prev:any) => ({ ...prev, ...updates }));
-  };
+  const fetchParcels = useCallback(async () => {
+    setLoading(true)
+    try {
+      // Find branch ID from name for API call
+      const branchId = allBranches.find(b => b.name === filters.branch)?.id
+      const merchantId = allMerchants.find(m => m.name === filters.merchant)?.id
+
+      const res = await getParcels({
+        page,
+        search: filters.search || undefined,
+        status: filters.status !== "all" ? (filters.status === "transit" ? "IN_TRANSIT" : filters.status.toUpperCase()) : undefined,
+        merchantId: merchantId || undefined,
+        fromBranchId: branchId || undefined,
+      })
+      const raw = res.data || []
+      setParcels(raw.map(mapApiParcel))
+      
+      if (res.meta) {
+        setTotalCount(res.meta.total)
+        setTotalPages(res.meta.lastPage)
+      }
+    } catch (err) {
+      console.error("Failed to fetch parcels:", err)
+    } finally {
+      setLoading(false)
+    }
+  }, [page, filters.search, filters.status, filters.branch, filters.merchant, allBranches, allMerchants])
+
+  useEffect(() => {
+    fetchParcels()
+  }, [fetchParcels])
+
+  const filteredData = parcels
+
+  const counts = useMemo(() => ({
+    all: totalCount,
+    transit: parcels.filter(p => p.status === "transit").length,
+    pending: parcels.filter(p => p.status === "pending").length,
+    received: parcels.filter(p => p.status === "received").length,
+    cancelled: parcels.filter(p => p.status === "cancelled").length,
+    returned: parcels.filter(p => p.status === "returned").length,
+  }), [parcels, totalCount])
 
   const clearFilters = () => {
-    setFilters({
-      status: "all",
-      search: "",
-      branch: "",
-      size: "",
-    });
-  };
+    setFilters({ status: "all", search: "", branch: "", merchant: "" })
+    setPage(1)
+  }
 
-  // 🔥 THIS IS THE CORE
-  const filteredData = useMemo(() => {
-    return PARCELS.filter((p) => {
-      // 1. STATUS
-      if (filters.status !== "all" && p.status !== filters.status) {
-        return false;
+  const updateFilters = (updates: Partial<Filters>) => {
+    if (updates.status && updates.status !== filters.status) setPage(1)
+    if (updates.search !== undefined && updates.search !== filters.search) setPage(1)
+    setFilters(prev => ({ ...prev, ...updates }))
+  }
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!showExportMenu) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false)
       }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [showExportMenu])
 
-      // 2. SEARCH (ID, client, recipient, desc)
-      const search = filters?.search?.toLowerCase();
-      if (
-        search &&
-        !(
-          p.id.toLowerCase().includes(search) ||
-          p.client.toLowerCase().includes(search) ||
-          p.desc.toLowerCase().includes(search)
-        )
-      ) {
-        return false;
-      }
+  const handleExport = async (format: "pdf" | "excel") => {
+    setShowExportMenu(false)
+    setExporting(true)
+    try {
+      await exportParcels(format)
+    } catch (err) {
+      console.error("Export failed:", err)
+    } finally {
+      setExporting(false)
+    }
+  }
 
-      // 3. BRANCH (match from OR to OR current)
-      if (
-        filters.branch &&
-        ![p.from, p.to, p.current].includes(filters.branch)
-      ) {
-        return false;
-      }
+  // Fetch branches and merchants for filter dropdowns
+  useEffect(() => {
+    getBranches().then(branches => {
+      setAllBranches(branches.map(b => ({ id: b.id, name: b.name })))
+    }).catch(() => {})
 
-      // 4. SIZE
-      if (filters.size && p.size !== filters.size) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [filters]);
-
-  // 🔢 counts for pills
-  const counts = useMemo(() => {
-    return {
-      all: PARCELS.length,
-      transit: PARCELS.filter((p) => p.status === "transit").length,
-      pending: PARCELS.filter((p) => p.status === "pending").length,
-      delivered: PARCELS.filter((p) => p.status === "delivered").length,
-      cancelled: PARCELS.filter((p) => p.status === "cancelled").length,
-    };
-  }, []);
+    getMerchants().then(res => {
+      setAllMerchants((res.data || []).map(m => ({ id: m.id, name: m.name })))
+    }).catch(() => {})
+  }, [])
 
   return (
     <div className='flex flex-col gap-6'>
-      
-        <PageHeader 
-            headerText='Enugu Branch · 9 parcels'
+
+        <PageHeader
+            headerText={`${totalCount} parcels`}
             mainText={'Parcels'}
-            subText='3 in transit · 4 delivered this month'
+            subText={loading ? 'Loading...' : `${counts.transit} in transit · ${counts.received} received`}
             button1="Export"
-            button2="Log Parcel"
             button1Icon={<Download/>}
+            onButton1={() => setShowExportMenu(!showExportMenu)}
+            button2="Log Parcel"
             button2Icon={<Plus/>}
-            onButton1={()=> {}}
             onButton2={()=> setOpenForm(true)}
         />
+
+        {/* Export dropdown */}
+        <div ref={exportRef} className="relative w-full right-0 inline-block self-start -mt-2">
+          {showExportMenu && (
+            <div className="absolute max-md:left-0 -top-15 xsm:-top-3 md:-top-8 md:right-4 mt-1 bg-white border border-border rounded-lg shadow-lg z-20">
+              <button
+                onClick={() => handleExport("pdf")}
+                className="text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition first:rounded-t-lg"
+              >
+                Export as PDF
+              </button>
+              <button
+                onClick={() => handleExport("excel")}
+                className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition border-t border-border last:rounded-b-lg"
+              >
+                Export as Excel
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="">
           <StatusPillsContainer
             counts={counts}
             onChange={(status) => updateFilters({ status })}
             activeStatus={filters.status}
+            disabled={loading}
           />
 
-          {/* FILTER BAR */}
           <FilterBar
             filters={filters}
             setFilters={setFilters}
             total={filteredData.length}
             onChange={(f) => updateFilters(f)}
+            filterConfigs={[
+              {
+                label: "Branch",
+                key: "branch",
+                options: allBranches.map(b => ({ value: b.name, label: b.name })),
+              },
+              {
+                label: "Merchant",
+                key: "merchant",
+                options: allMerchants.map(m => ({ value: m.name, label: m.name })),
+              },
+            ]}
+            resetKeys={["search", "branch", "merchant"]}
+            disabled={loading}
           />
-
         </div>
 
+        {loading ? (
+          <ParcelTableSkeleton />
+        ) : (
+          <ParcelTable
+            data={filteredData} setSelectedParcel={setSelectedParcel} onClearFilters={clearFilters}
+          />
+        )}
 
-        <ParcelTable 
-          data={filteredData} setSelectedParcel={setSelectedParcel} onClearFilters={clearFilters}
-        />
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 pb-4">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1.5 text-sm border border-ink-subtle text-ink-subtle rounded-lg disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-ink-muted">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-3 py-1.5 text-sm border border-ink-subtle text-ink-subtle rounded-lg disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        )}
 
         <DetailPanel
           parcel={selectedParcel}
           onClose={() => setSelectedParcel(null)}
+          onUpdated={() => {
+            setSelectedParcel(null)
+            fetchParcels()
+          }}
         />
-
 
         <ParcelFormPanel
           isOpen={openForm}
-          onClose={() => setOpenForm(false)}
-          parcels={PARCELS}
+          onClose={() => {
+            setOpenForm(false)
+            fetchParcels()
+          }}
+          parcels={parcels}
           onBulkTransfer={(ids, toBranch) => {
             console.log("BULK TRANSFER:", { parcelIds: ids, toBranch });
           }}
@@ -141,6 +315,40 @@ const ParcelPage = () => {
           onClose={() => setOpenForm(false)}
           zIndex={59}
         />
+    </div>
+  )
+}
+
+function ParcelTableSkeleton() {
+  return (
+    <div className="flex-1 overflow-auto">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-white border-b border-gray-200">
+            {["Parcel ID", "Client", "Route", "Current Location", "Size", "Status", "Date In"].map((h) => (
+              <th key={h} className="text-left px-3 py-2.5 text-xs font-medium text-gray-400 uppercase">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <tr key={i} className="border-b border-gray-100">
+              <td className="px-3 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+              <td className="px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-gray-200 rounded-full animate-pulse" />
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </td>
+              <td className="px-3 py-3"><div className="h-4 w-28 bg-gray-200 rounded animate-pulse" /></td>
+              <td className="px-3 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
+              <td className="px-3 py-3"><div className="h-4 w-14 bg-gray-200 rounded animate-pulse" /></td>
+              <td className="px-3 py-3"><div className="h-5 w-16 bg-gray-100 rounded animate-pulse" /></td>
+              <td className="px-3 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

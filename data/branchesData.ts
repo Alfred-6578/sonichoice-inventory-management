@@ -59,5 +59,6 @@ export const BranchesDetails: BranchDetails[] = branches.map((branch) => ({
   pending: 0,
   maxHolding: 10,
   parcels: parcelsData[parseInt(branch.id) - 1],
+  products: [],
   color: "#374151",
 }));

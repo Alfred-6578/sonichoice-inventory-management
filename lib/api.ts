@@ -21,6 +21,7 @@ function isTokenExpired(token: string): boolean {
 function handleAuthFailure() {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+  document.cookie = "token=; path=/; max-age=0";
   window.location.href = "/login";
 }
 
@@ -56,7 +57,8 @@ export async function api<T = unknown>(
 
     clearTimeout(timeout);
 
-    const data = await res.json();
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
 
     // Redirect on auth errors — but not on login endpoint (let login show its own error)
     if ((res.status === 401 || res.status === 403) && !endpoint.startsWith("/auth/")) {

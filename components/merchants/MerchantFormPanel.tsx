@@ -64,7 +64,6 @@ export default function MerchantFormPanel({ isOpen, onClose, onSubmit }: Merchan
         color: formData.color,
         status: "ACTIVE"
       })
-      console.log('Merchant created:', result)
       setSuccess(`"${result.name}" has been added successfully!`)
       setFormData({ name: '', contact: '', phone: '', email: '', color: '#2563eb' })
       onSubmit?.(result)

@@ -2,10 +2,11 @@
 
 import { InventoryItem } from "@/types/inventory"
 import { BRANCHES_LIST } from "@/data/inventoryData"
-import { X, Pencil } from "lucide-react"
+import { X, Pencil, Trash2 } from "lucide-react"
 import { DM_Mono, Syne } from "next/font/google"
-import { useState } from "react"
-import { updateProduct } from "@/lib/products"
+import { useState, useEffect } from "react"
+import { updateProduct, deleteProduct, BranchEntry } from "@/lib/products"
+import { getBranches, ApiBranch } from "@/lib/branches"
 
 const syne = Syne({
     variable: "--font-syne",
@@ -28,32 +29,94 @@ export default function InventoryDetailPanel({
 }) {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState("")
-  const [editQty, setEditQty] = useState(0)
   const [editDesc, setEditDesc] = useState("")
   const [editNotes, setEditNotes] = useState("")
+  const [editBranches, setEditBranches] = useState<{ branchId: string; quantity: number; lowStockAlert: number }[]>([])
+  const [allBranches, setAllBranches] = useState<ApiBranch[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   if (!item) return null
 
-  const startEdit = () => {
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError("")
+    try {
+      await deleteProduct(item.id)
+      setConfirmDelete(false)
+      onClose()
+      onUpdated?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const startEdit = async () => {
     setEditName(item.name)
-    setEditQty(item.totalQty)
     setEditDesc(item.category)
     setEditNotes(item.notes)
+    // Build branch entries from current stock
+    const entries = Object.entries(item.stock).map(([name, qty]) => ({
+      branchId: name, // will be resolved to id below
+      quantity: qty ?? 0,
+      lowStockAlert: 10,
+    }))
+    setEditBranches(entries)
     setError("")
     setEditing(true)
+
+    // Fetch branches to get IDs
+    try {
+      const branches = await getBranches()
+      setAllBranches(branches)
+      // Resolve branch names to IDs
+      const resolved = entries.map((e) => {
+        const match = branches.find((b) => b.name === e.branchId)
+        return { ...e, branchId: match?.id || e.branchId }
+      })
+      setEditBranches(resolved)
+    } catch {
+      // Continue with names if fetch fails
+    }
+  }
+
+  const handleAddBranch = () => {
+    const usedIds = editBranches.map((e) => e.branchId)
+    const available = allBranches.find((b) => !usedIds.includes(b.id))
+    if (available) {
+      setEditBranches([...editBranches, { branchId: available.id, quantity: 0, lowStockAlert: 10 }])
+    }
+  }
+
+  const handleRemoveBranch = (index: number) => {
+    setEditBranches(editBranches.filter((_, i) => i !== index))
+  }
+
+  const handleBranchEntryChange = (index: number, field: string, value: string | number) => {
+    const updated = [...editBranches]
+    updated[index] = { ...updated[index], [field]: value }
+    setEditBranches(updated)
   }
 
   const handleSave = async () => {
+    const validBranches = editBranches.filter((b) => b.quantity > 0)
+    if (validBranches.length === 0) {
+      setError("At least one branch must have quantity > 0")
+      return
+    }
+
     setSaving(true)
     setError("")
     try {
       await updateProduct(item.id, {
         name: editName,
-        quantity: editQty,
         description: editDesc || undefined,
         additionalInfo: editNotes || undefined,
+        branches: validBranches,
       })
       setEditing(false)
       onUpdated?.()
@@ -127,6 +190,14 @@ export default function InventoryDetailPanel({
         </div>
         {!editing && (
           <button
+            onClick={() => setConfirmDelete(true)}
+            className="w-7 h-7 rounded-md border-none bg-transparent cursor-pointer flex items-center justify-center text-gray-400 flex-shrink-0 transition-all hover:bg-red-50 hover:text-red-500"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!editing && (
+          <button
             onClick={startEdit}
             className="w-7 h-7 rounded-md border-none bg-transparent cursor-pointer flex items-center justify-center text-gray-400 flex-shrink-0 transition-all hover:bg-gray-100 hover:text-gray-900"
           >
@@ -156,16 +227,6 @@ export default function InventoryDetailPanel({
               />
             </div>
             <div>
-              <label className="block font-mono text-[10px] text-gray-400 uppercase mb-1">Quantity</label>
-              <input
-                type="number"
-                min="0"
-                value={editQty}
-                onChange={(e) => setEditQty(parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-gray-900"
-              />
-            </div>
-            <div>
               <label className="block font-mono text-[10px] text-gray-400 uppercase mb-1">Description</label>
               <input
                 type="text"
@@ -183,7 +244,68 @@ export default function InventoryDetailPanel({
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-gray-900 resize-none"
               />
             </div>
-            <div className="flex gap-2">
+
+            {/* Stock by Branch */}
+            <div className="font-mono text-[10px] text-gray-400 uppercase mt-2">Stock by branch</div>
+            <div className="grid grid-cols-[1fr_60px_60px_24px] gap-1.5 mb-1">
+              <span className="font-mono text-[9px] text-gray-400 uppercase">Branch</span>
+              <span className="font-mono text-[9px] text-gray-400 uppercase">Qty</span>
+              <span className="font-mono text-[9px] text-gray-400 uppercase">Alert</span>
+              <span />
+            </div>
+            {editBranches.map((entry, index) => (
+              <div key={index} className="grid grid-cols-[1fr_60px_60px_24px] gap-1.5">
+                <select
+                  value={entry.branchId}
+                  onChange={(e) => handleBranchEntryChange(index, 'branchId', e.target.value)}
+                  className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-900 outline-none focus:border-gray-900"
+                >
+                  {allBranches.map((b) => (
+                    <option key={b.id} value={b.id} disabled={editBranches.some((e, i) => i !== index && e.branchId === b.id)}>
+                      {b.name}
+                    </option>
+                  ))}
+                  {/* Keep current value if branches haven't loaded */}
+                  {!allBranches.find((b) => b.id === entry.branchId) && (
+                    <option value={entry.branchId}>{entry.branchId}</option>
+                  )}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  value={entry.quantity}
+                  onChange={(e) => handleBranchEntryChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                  className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-900 outline-none focus:border-gray-900"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={entry.lowStockAlert}
+                  onChange={(e) => handleBranchEntryChange(index, 'lowStockAlert', parseInt(e.target.value) || 0)}
+                  className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-900 outline-none focus:border-gray-900"
+                />
+                {editBranches.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveBranch(index)}
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {allBranches.some((b) => !editBranches.some((e) => e.branchId === b.id)) && (
+              <button
+                type="button"
+                onClick={handleAddBranch}
+                className="font-mono text-[10px] text-amber-600 underline hover:text-amber-700 transition-colors"
+              >
+                + Add another branch
+              </button>
+            )}
+
+            <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setEditing(false)}
                 className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100"
@@ -281,6 +403,43 @@ export default function InventoryDetailPanel({
         </div>
 
       </div>
+
+      {/* Delete Confirmation */}
+      {confirmDelete && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center p-5">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-5 max-w-72 w-full text-center">
+            <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-red-50 flex items-center justify-center">
+              <Trash2 className="w-5 h-5 text-red-500" />
+            </div>
+            <div className="text-sm font-bold text-gray-900 mb-1">Delete this product?</div>
+            <div className="text-xs text-gray-500 mb-4">
+              &quot;{item.name}&quot; will be permanently removed. This action cannot be undone.
+            </div>
+            {error && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                {error}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setConfirmDelete(false); setError(""); }}
+                className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className={`flex-1 px-3 py-2 text-xs rounded-lg text-white font-bold ${
+                  deleting ? 'bg-red-300' : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

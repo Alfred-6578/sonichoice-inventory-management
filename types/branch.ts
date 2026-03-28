@@ -40,6 +40,17 @@ export interface Staff {
   online: boolean;
 }
 
+export interface BranchProduct {
+  id: string;
+  trackingId: string;
+  name: string;
+  description: string;
+  quantity: number;
+  lowStockAlert: number;
+  merchantName?: string;
+  merchantColor?: string;
+}
+
 export interface BranchDetails {
   id: string;
   name: string;
@@ -59,5 +70,6 @@ export interface BranchDetails {
   pending: number;
   maxHolding: number;
   parcels: Parcel[];
+  products: BranchProduct[];
   color: string;
 }

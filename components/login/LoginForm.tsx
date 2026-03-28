@@ -33,7 +33,7 @@ const LoginForm = () => {
 
       try {
         const data = await login({ email, password });
-        console.log(data)
+        
         localStorage.setItem("user", JSON.stringify(data.user));
         router.push("/dashboard");
       } catch (err: unknown) {

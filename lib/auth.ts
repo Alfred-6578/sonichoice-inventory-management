@@ -28,6 +28,8 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
 
   if (data.accessToken) {
     localStorage.setItem("token", data.accessToken);
+    // Set cookie so middleware can read it server-side
+    document.cookie = `token=${data.accessToken}; path=/; max-age=${60 * 60}; SameSite=Lax`;
   }
 
   return data;
@@ -36,6 +38,8 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
 export function logout() {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+  // Clear the cookie
+  document.cookie = "token=; path=/; max-age=0";
   window.location.href = "/login";
 }
 

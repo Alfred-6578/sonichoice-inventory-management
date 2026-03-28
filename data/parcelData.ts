@@ -50,7 +50,7 @@ export const parcelData: ParcelSectionData = {
       },
       location: "Enugu HQ",
       size: "Medium",
-      status: "delivered",
+      status: "received",
     },
   ],
 
@@ -76,7 +76,7 @@ export const parcelData: ParcelSectionData = {
       },
       location: "Ebonyi Branch",
       size: "XL",
-      status: "delivered",
+      status: "received",
     },
     {
       id: "PCL-003",
@@ -99,7 +99,7 @@ export const parcelData: ParcelSectionData = {
       },
       location: "Nsukka Branch",
       size: "Medium",
-      status: "delivered",
+      status: "received",
     },
     {
       id: "PCL-001",
@@ -110,7 +110,7 @@ export const parcelData: ParcelSectionData = {
       },
       location: "Ebonyi Branch",
       size: "Large",
-      status: "delivered",
+      status: "received",
     },
   ],
 };
@@ -118,6 +118,7 @@ export const parcelData: ParcelSectionData = {
 export const PARCELS: Parcel[] = [
   {
     id: "PCL-009",
+    apiId: "PCL-009",
     client: "Kemi Adeyemi",
     clientCo: "Adeyemi Fashion",
     clientAv: "KA",
@@ -140,6 +141,7 @@ export const PARCELS: Parcel[] = [
   },
   {
     id: "PCL-008",
+    apiId: "PCL-008",
     client: "Ngozi Eze",
     clientCo: "EzeMart Electronics",
     clientAv: "NE",
@@ -162,6 +164,7 @@ export const PARCELS: Parcel[] = [
   },
   {
     id: "PCL-007",
+    apiId: "PCL-007",
     client: "Tunde Bakare",
     clientCo: "",
     clientAv: "TB",
@@ -183,7 +186,7 @@ export const PARCELS: Parcel[] = [
     ],
   },
   {
-    id: "PCL-006",    client: "Aliyu Musa",
+    id: "PCL-006",    apiId: "PCL-006",    client: "Aliyu Musa",
     clientCo: "Musa Foods",
     clientAv: "AM",
     clientColor: "#dc2626",
@@ -195,7 +198,7 @@ export const PARCELS: Parcel[] = [
     current: "Enugu (Head Office)",
     recipient: "Aisha Bello",
     recipientPhone: "0803-777-9090",
-    status: "delivered",
+    status: "received",
     date: "2026-03-14",
     notes: "Delivered on time",
     history: [
@@ -204,7 +207,7 @@ export const PARCELS: Parcel[] = [
     ],
   },
   {
-    id: "PCL-005",    client: "Ngozi Eze",
+    id: "PCL-005",    apiId: "PCL-005",    client: "Ngozi Eze",
     clientCo: "EzeMart Electronics",
     clientAv: "NE",
     clientColor: "#7c3aed",
