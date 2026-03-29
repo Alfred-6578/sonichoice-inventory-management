@@ -91,7 +91,7 @@ export async function getParcels(
 // ── Create ──
 
 export type CreateParcelPayload = {
-  merchantId: string;
+  // merchantId: string;
   fromBranchId: string;
   toBranchId: string;
   size?: "SMALL" | "MEDIUM" | "LARGE" | "EXTRA_LARGE";
