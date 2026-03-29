@@ -8,6 +8,7 @@ import { Syne } from "next/font/google";
 import { useEffect, useState } from "react";
 import { updateParcelStatus, deleteParcel, updateParcel, ParcelStatusValue } from "@/lib/parcels";
 import { getBranches } from "@/lib/branches";
+import { getStoredUser } from "@/lib/auth";
 import { Trash2, Pencil, X } from "lucide-react";
 import Select from "../ui/Select";
 
@@ -43,27 +44,48 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
 
   const isOpen = !!parcel;
 
+  // User context for permissions
+  const user = getStoredUser();
+  const userBranchId = user?.branchId || "";
+  const userRole = (user?.role || "").toUpperCase();
+  const isAdmin = userRole === "ADMIN";
+  const isFromBranch = !!(userBranchId && parcel?.fromBranchId === userBranchId);
+  const isToBranch = !!(userBranchId && parcel?.toBranchId === userBranchId);
+  const isInvolvedBranch = isFromBranch || isToBranch;
+
   if (!parcel) {
     return (
       <div className={`w-0 overflow-hidden transition-all`} />
     );
   }
 
-  // Determine which status actions are available based on current status
+  // Determine which status actions are available based on current status and user's branch
   const getStatusActions = (): { label: string; status: ParcelStatusValue; variant: string }[] => {
+
+    if (!isInvolvedBranch) return [];
+
     const actions: { label: string; status: ParcelStatusValue; variant: string }[] = [];
 
     switch (parcel.status) {
       case "pending":
-        actions.push({ label: "Mark In Transit", status: "IN_TRANSIT", variant: "bg-amber text-white" });
-        actions.push({ label: "Cancel", status: "CANCELLED", variant: "bg-red-600 text-white" });
+        // Only from-branch can dispatch or cancel
+        if (isFromBranch) {
+          actions.push({ label: "Mark In Transit", status: "IN_TRANSIT", variant: "bg-amber text-white" });
+          actions.push({ label: "Cancel", status: "CANCELLED", variant: "bg-red-600 text-white" });
+        }
         break;
       case "transit":
-        actions.push({ label: "Mark Received", status: "RECEIVED", variant: "bg-delivered text-white" });
-        actions.push({ label: "Return", status: "RETURNED", variant: "border border-border text-ink-muted" });
-        actions.push({ label: "Cancel", status: "CANCELLED", variant: "bg-red-600 text-white" });
+        // To-branch can receive or return
+        if (isToBranch) {
+          actions.push({ label: "Mark Received", status: "RECEIVED", variant: "bg-delivered text-white" });
+          actions.push({ label: "Return", status: "RETURNED", variant: "border border-border text-ink-muted" });
+        }
+        // From-branch can cancel
+        if (isFromBranch) {
+          actions.push({ label: "Cancel", status: "CANCELLED", variant: "bg-red-600 text-white" });
+        }
         break;
-      // delivered, cancelled, received — no actions (final states)
+      // received, cancelled, returned — no actions (final states)
     }
 
     return actions;
@@ -230,7 +252,7 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
         <div className="ml-auto flex items-center gap-1">
           {!editing && (
             <>
-              {parcel.status !== "received" && parcel.status !== "returned" && parcel.status !== "cancelled" && (
+              {isInvolvedBranch && parcel.status !== "received" && parcel.status !== "returned" && parcel.status !== "cancelled" && (
                 <button
                   onClick={startEdit}
                   className="w-7 h-7 flex items-center justify-center rounded-md text-ink-subtle hover:bg-surface transition"
@@ -238,12 +260,14 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
               )}
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="w-7 h-7 flex items-center justify-center rounded-md text-ink-subtle hover:bg-red-50 hover:text-red-500 transition"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-ink-subtle hover:bg-red-50 hover:text-red-500 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </>
           )}
         </div>
@@ -479,7 +503,7 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-border flex items-center gap-3 shrink-0">
+              <div className="px-6 py-4 border-b border-border flex max-sm:flex-col sm:items-center gap-3 shrink-0">
                 <div className="flex-1">
                   <div className="text-lg font-bold text-ink">Edit Parcel Items</div>
                   <div className="text-xs text-ink-subtle mt-0.5">
@@ -487,25 +511,27 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg w-48 focus-within:border-border-strong">
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-ink-subtle shrink-0">
-                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={itemSearch}
-                    onChange={(e) => setItemSearch(e.target.value)}
-                    className="bg-transparent outline-none w-full text-xs text-ink placeholder:text-ink-subtle"
-                  />
-                </div>
+                <div className="flex gap-2">
+                  <div className="flex items-center w-full gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg focus-within:border-border-strong">
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-ink-subtle shrink-0">
+                      <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={itemSearch}
+                      onChange={(e) => setItemSearch(e.target.value)}
+                      className="bg-transparent outline-none w-full text-xs text-ink placeholder:text-ink-subtle"
+                    />
+                  </div>
 
-                <button
-                  onClick={() => setShowItemsModal(false)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-subtle hover:bg-surface transition shrink-0"
-                >
-                  <X size={18} />
-                </button>
+                  <button
+                    onClick={() => setShowItemsModal(false)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-subtle hover:bg-surface transition shrink-0"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               {/* Modal Body */}

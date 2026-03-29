@@ -143,7 +143,7 @@ export default function ParcelFormPanel({
       }));
 
       const payload = {
-        merchantId: derivedMerchantId,
+        // merchantId: derivedMerchantId,
         fromBranchId,
         toBranchId,
         size: (size as "SMALL" | "MEDIUM" | "LARGE" | "EXTRA_LARGE") || undefined,

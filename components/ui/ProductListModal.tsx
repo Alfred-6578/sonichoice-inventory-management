@@ -80,11 +80,11 @@ export default function ProductListModal({
       {/* Modal */}
       <div className="fixed inset-0 z-[71] flex items-center justify-center p-4">
         <div
-          className="bg-white rounded-xl border border-border shadow-2xl flex flex-col w-full max-w-[90%] xl:max-w-[80%] max-h-[90vh]"
+          className="bg-white rounded-xl border border-border shadow-2xl flex flex-col w-full max-w-[93%] xl:max-w-[80%] max-h-[95vh] sm:max-h-[90vh]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-border flex items-center gap-3 shrink-0">
+          <div className="px-6 py-4 border-b max-sm:flex-col border-border flex sm:items-center gap-3 shrink-0">
             <div className="flex-1 min-w-0">
               <div className={`text-lg font-bold text-ink ${syne.className}`}>
                 {title}
@@ -94,26 +94,28 @@ export default function ProductListModal({
               )}
             </div>
 
-            {/* Search */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg w-56 focus-within:border-border-strong">
-              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-ink-subtle shrink-0">
-                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={search}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-transparent outline-none w-full text-xs text-ink placeholder:text-ink-subtle"
-              />
-            </div>
+            <div className="flex gap-2">
+              {/* Search */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg w-full sm:w-56 focus-within:border-border-strong">
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-ink-subtle shrink-0">
+                  <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={search}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="bg-transparent outline-none w-full text-xs text-ink placeholder:text-ink-subtle"
+                />
+              </div>
 
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-subtle hover:bg-surface transition shrink-0"
-            >
-              <X size={18} />
-            </button>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-subtle hover:bg-surface transition shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Body */}
