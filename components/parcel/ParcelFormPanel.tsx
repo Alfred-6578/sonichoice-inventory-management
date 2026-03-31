@@ -8,6 +8,7 @@ import Tag from "../ui/Tag";
 import { X } from "lucide-react";
 import { getBranches, ApiBranch } from "@/lib/branches";
 import { createParcel } from "@/lib/parcels";
+import { getStoredUser } from "@/lib/auth";
 
 const dm_mono = DM_Mono({
     variable:"--font-dm_mono",
@@ -48,41 +49,62 @@ export default function ParcelFormPanel({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [didCreate, setDidCreate] = useState(false);
 
-  // Fetch branches on mount
-  useEffect(() => {
-    if (branches.length === 0) {
-      getBranches().then(setBranches).catch(() => {});
-    }
-  }, []);
-
-  // Derive products from branch's productStocks when from branch changes
-  useEffect(() => {
-    if (!fromBranchId) {
-      setProducts([]);
-      return;
-    }
-
-    setSelected(new Map());
-
-    const branch = branches.find((b) => b.id === fromBranchId);
+  const deriveProducts = (branchData: ApiBranch[]) => {
+    const branch = branchData.find((b) => b.id === fromBranchId);
     if (!branch || !branch.productStocks) {
       setProducts([]);
       return;
     }
+    setProducts(
+      branch.productStocks
+        .filter((s) => s.quantity > 0)
+        .map((s) => ({
+          id: s.productId,
+          trackingId: s.product?.trackingId || s.productId.slice(0, 8),
+          name: s.product?.name || "Product",
+          description: (s.product?.description as string) ?? "",
+          maxQuantity: s.quantity,
+          merchantId: (s.product?.merchantId as string) || "",
+        }))
+    );
+  };
 
-    const mapped = branch.productStocks
-      .filter((s) => s.quantity > 0)
-      .map((s) => ({
-        id: s.productId,
-        trackingId: s.product?.trackingId || s.productId.slice(0, 8),
-        name: s.product?.name || "Product",
-        description: (s.product?.description as string) ?? "",
-        maxQuantity: s.quantity,
-        merchantId: (s.product?.merchantId as string) || "",
-      }));
+  // Fetch branches on mount and set fromBranch to user's branch
+  useEffect(() => {
+    const user = getStoredUser();
+    const userBranchId = user?.branchId || "";
 
-    setProducts(mapped);
+    getBranches().then((data) => {
+      setBranches(data);
+      if (userBranchId) {
+        setFromBranchId(userBranchId);
+        // Derive products immediately using fetched data (not stale state)
+        const branch = data.find((b) => b.id === userBranchId);
+        if (branch?.productStocks) {
+          setProducts(
+            branch.productStocks
+              .filter((s) => s.quantity > 0)
+              .map((s) => ({
+                id: s.productId,
+                trackingId: s.product?.trackingId || s.productId.slice(0, 8),
+                name: s.product?.name || "Product",
+                description: (s.product?.description as string) ?? "",
+                maxQuantity: s.quantity,
+                merchantId: (s.product?.merchantId as string) || "",
+              }))
+          );
+        }
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Derive products when fromBranchId changes (after initial load)
+  useEffect(() => {
+    if (!fromBranchId || branches.length === 0) return;
+    setSelected(new Map());
+    deriveProducts(branches);
   }, [fromBranchId, branches]);
 
   const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
@@ -154,9 +176,8 @@ export default function ParcelFormPanel({
       const result = await createParcel(payload);
 
       setSuccess(`Parcel ${result.trackingNumber} created successfully!`);
+      setDidCreate(true);
       setSelected(new Map());
-      setProducts([]);
-      setFromBranchId("");
       setToBranchId("");
       setSize("");
       setAdditionalInfo("");
@@ -168,17 +189,16 @@ export default function ParcelFormPanel({
   };
 
   const resetAndClose = () => {
-    onClose();
+    onClose(didCreate);
     setSelected(new Map());
-    setFromBranchId("");
     setToBranchId("");
     setSize("");
     setAdditionalInfo("");
-    setProducts([]);
     setShowFullModal(false);
     setModalSearch("");
     setError("");
     setSuccess("");
+    setDidCreate(false);
   };
 
   const selectedCount = selected.size;
@@ -238,14 +258,9 @@ export default function ParcelFormPanel({
           {/* BRANCHES */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="From Branch">
-              <Select
-                id="transfer-from"
-                size="sm"
-                value={fromBranchId}
-                onChange={(e) => { setFromBranchId(e.target.value); setSelected(new Map()); }}
-                options={branchOptions}
-                placeholder="— Select —"
-              />
+              <div className="w-full px-4 py-2 border border-border rounded-lg bg-surface text-sm text-ink-muted mt-1">
+                {branches.find(b => b.id === fromBranchId)?.name || "Loading..."}
+              </div>
             </Field>
 
             <Field label="To Branch">

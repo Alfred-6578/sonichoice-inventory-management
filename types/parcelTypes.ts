@@ -99,7 +99,7 @@ export type DetailPanelProps = {
 
 export type FormDataProps = {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (didCreate?: boolean) => void;
   onSubmit?: (data: any) => void;
   parcels?: Parcel[];
   onBulkTransfer?: (parcelIds: string[], toBranch: string) => void;

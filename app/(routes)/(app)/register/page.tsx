@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { Syne } from 'next/font/google'
-import { BiSolidEnvelope, BiSolidLock, BiSolidUser } from 'react-icons/bi'
+import { BiSolidEnvelope, BiSolidLock, BiSolidPhone, BiSolidUser } from 'react-icons/bi'
 import { BsArrowRight, BsArrowLeft } from 'react-icons/bs'
 import Link from 'next/link'
 import Input from '@/components/ui/Input'
@@ -19,6 +19,7 @@ const syne = Syne({
 const RegisterPage = () => {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [branchId, setBranchId] = useState("")
@@ -55,10 +56,11 @@ const RegisterPage = () => {
 
     setLoading(true)
     try {
-      await registerUser({ email, password, name, branchId, role })
+      await registerUser({ email, password, name, ...(phone ? { phone } : {}), branchId, role })
       setSuccess(true)
       setName("")
       setEmail("")
+      setPhone("")
       setPassword("")
       setConfirmPassword("")
       setBranchId("")
@@ -130,6 +132,16 @@ const RegisterPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   Icon={BiSolidEnvelope}
                 />
+
+                {/* <Input
+                  label="Phone Number (optional)"
+                  id="phone"
+                  type="tel"
+                  placeholder="+234 xxx xxx xxxx"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  Icon={BiSolidPhone}
+                /> */}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>

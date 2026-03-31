@@ -1,15 +1,18 @@
+'use client'
+
 import { StaffMember } from '@/types/staff'
-import { X, Phone, Mail, Briefcase, MapPin, Calendar, AlertCircle } from 'lucide-react'
-import Button from '@/components/ui/Button'
+import { X, Phone, Mail, Briefcase, MapPin, Calendar, Pencil } from 'lucide-react'
 import { Syne } from 'next/font/google'
-import { RiTeamLine } from 'react-icons/ri'
+import { useEffect, useState } from 'react'
+import { updateUser } from '@/lib/users'
+import { getBranches } from '@/lib/branches'
+import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
 
 interface StaffDetailPanelProps {
   staff: StaffMember | null
   onClose: () => void
-  onEdit?: () => void
-  onDelete?: (id: string) => void
-  onSuspend?: (id: string, newStatus: 'active' | 'suspended') => void
+  onUpdated?: () => void
 }
 
 const syne = Syne({
@@ -17,12 +20,7 @@ const syne = Syne({
   subsets: ['latin']
 })
 
-interface SectionProps {
-  title: string
-  children: React.ReactNode
-}
-
-function Section({ title, children }: SectionProps) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="border-b border-border last:border-b-0">
       <h3 className="text-sm font-semibold text-ink px-4 py-3 bg-surface">{title}</h3>
@@ -31,13 +29,7 @@ function Section({ title, children }: SectionProps) {
   )
 }
 
-interface InfoRowProps {
-  label: string
-  value: string | React.ReactNode
-  icon?: React.ComponentType<{ className?: string }>
-}
-
-function InfoRow({ label, value, icon: Icon }: InfoRowProps) {
+function InfoRow({ label, value, icon: Icon }: { label: string; value: string | React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) {
   return (
     <div className="flex items-start gap-3">
       {Icon && <Icon className="w-4 h-4 text-ink/60 flex-shrink-0 mt-1" />}
@@ -49,142 +41,218 @@ function InfoRow({ label, value, icon: Icon }: InfoRowProps) {
   )
 }
 
-export default function StaffDetailPanel({
-  staff,
-  onClose,
-  onEdit,
-  onDelete,
-  onSuspend
-}: StaffDetailPanelProps) {
+export default function StaffDetailPanel({ staff, onClose, onUpdated }: StaffDetailPanelProps) {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [editName, setEditName] = useState("")
+  const [editPhone, setEditPhone] = useState("")
+  const [editRole, setEditRole] = useState("")
+  const [editBranchId, setEditBranchId] = useState("")
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
+
+  // Reset edit state when staff changes
+  useEffect(() => {
+    setEditing(false)
+    setError("")
+  }, [staff?.id])
+
+  // Fetch branches for edit dropdown
+  useEffect(() => {
+    if (editing && branches.length === 0) {
+      getBranches().then((data) => {
+        setBranches(data.map(b => ({ id: b.id, name: b.name })))
+      }).catch(() => {})
+    }
+  }, [editing])
+
   if (!staff) return null
 
-  const handleDelete = () => {
-    if (confirm(`Are you sure you want to remove ${staff.name}?`)) {
-      onDelete?.(staff.id)
-      onClose()
+  const startEdit = () => {
+    setEditName(staff.name)
+    setEditPhone(staff.phone)
+    setEditRole(staff.role)
+    setEditBranchId(staff.branchId || "")
+    setError("")
+    setEditing(true)
+  }
+
+  const handleSave = async () => {
+    if (!editName.trim()) {
+      setError("Name is required.")
+      return
+    }
+
+    setSaving(true)
+    setError("")
+    try {
+      await updateUser(staff.id, {
+        name: editName,
+        phone: editPhone || undefined,
+        role: editRole as "USER" | "ADMIN",
+        branchId: editBranchId || undefined,
+      })
+      setEditing(false)
+      onUpdated?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update user")
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleSuspend = () => {
-    const newStatus = staff.status === 'suspended' ? 'active' : 'suspended'
-    onSuspend?.(staff.id, newStatus)
-  }
-
   return (
-    <div className="sm:w-[420px] w-full bg-surface-raised border-l border-border flex flex-col fixed top-0 z-50 right-0 h-screen">
+    <div className="sm:w-[420px] w-full bg-surface-raised border-l border-border flex flex-col fixed top-0 z-50 right-0 h-screen shadow-2xl">
       {/* HEADER */}
       <div className="px-4 py-4 border-b border-border flex items-start justify-between gap-3 flex-shrink-0">
         <div>
           <div className="text-xs text-ink-subtle uppercase tracking-wider mb-1">Staff Member</div>
           <div className={`text-lg font-bold text-ink ${syne.className}`}>{staff.name}</div>
         </div>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-subtle hover:bg-surface transition flex-shrink-0"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+          {!editing && (
+            <button
+              onClick={startEdit}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-subtle hover:bg-surface transition"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-subtle hover:bg-surface transition"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
+
+      {/* EDIT FORM */}
+      {editing && (
+        <div className="px-4 py-4 border-b border-border space-y-3">
+          <div className="text-[9px] font-mono text-ink-subtle uppercase tracking-wider">Edit User</div>
+
+          {error && (
+            <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">{error}</div>
+          )}
+
+          <Input
+            id="edit-name"
+            label="Name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            size="sm"
+          />
+
+          <Input
+            id="edit-phone"
+            label="Phone"
+            value={editPhone}
+            onChange={(e) => setEditPhone(e.target.value)}
+            placeholder="+234..."
+            size="sm"
+          />
+
+          <div>
+            <label className="block text-xs text-[#9ca3af] uppercase tracking-wide mb-1.5">Role</label>
+            <Select
+              id="edit-role"
+              size="sm"
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value)}
+              options={[
+                { value: "USER", label: "Staff" },
+                { value: "ADMIN", label: "Admin" },
+              ]}
+              placeholder="— Select —"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-[#9ca3af] uppercase tracking-wide mb-1.5">Branch</label>
+            <Select
+              id="edit-branch"
+              size="sm"
+              value={editBranchId}
+              onChange={(e) => setEditBranchId(e.target.value)}
+              options={branches.map(b => ({ value: b.id, label: b.name }))}
+              placeholder="— Select —"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => { setEditing(false); setError(""); }}
+              className="px-3 py-1.5 text-xs border border-border rounded-lg text-ink-muted hover:bg-surface"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`flex-1 px-3 py-1.5 text-xs rounded-lg text-white font-bold ${
+                saving ? "bg-gray-400" : "bg-ink hover:bg-gray-800"
+              }`}
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* BODY */}
       <div className="flex-1 overflow-y-auto">
         {/* METRICS */}
         <div className="grid grid-cols-2 border-b border-border bg-surface/50">
           <div className="p-3 border-r border-border text-center">
-            <div className="text-xs text-ink/60 mb-1">Status</div>
-            <div
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-m ${
-                staff.status === 'active'
-                  ? 'bg-green-100 text-green-700'
-                  : staff.status === 'suspended'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              {staff.status === 'active' && '●'} {staff.status}
-            </div>
+            <div className="text-xs text-ink/60 mb-1">Role</div>
+            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+              staff.role === "ADMIN"
+                ? "bg-amber/10 text-amber-700 border border-amber/30"
+                : "bg-surface border border-border text-ink-muted"
+            }`}>
+              {staff.role === "ADMIN" ? "Admin" : "Staff"}
+            </span>
           </div>
-          {/* <div className="p-3 border-r border-border text-center">
-            <div className="text-xs text-ink/60 mb-1">Online</div>
-            <div className="flex items-center justify-center gap-1">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  staff.onlineStatus ? 'bg-green-500' : 'bg-gray-400'
-                }`}
-              />
-              <span className="text-xs font-m">{staff.onlineStatus ? 'Online' : 'Offline'}</span>
-            </div>
-          </div> */}
           <div className="p-3 text-center">
             <div className="text-xs text-ink/60 mb-1">Branch</div>
-            <div className="text-xs font-m text-ink">{staff.branch || 'N/A'}</div>
+            <div className="text-xs font-medium text-ink">{staff.branch || "N/A"}</div>
           </div>
         </div>
 
         {/* CONTACT INFO */}
-        <Section title="Contact Information" >
-
-        
+        <Section title="Contact Information">
           <InfoRow label="Email" value={staff.email} icon={Mail} />
-          <InfoRow label="Phone" value={staff.phone} icon={Phone} />
+          <InfoRow label="Phone" value={staff.phone || "Not set"} icon={Phone} />
         </Section>
 
-        {/* ROLE & DEPARTMENT */}
+        {/* POSITION */}
         <Section title="Position">
-
-          <InfoRow label="Role" value={staff.role} icon={Briefcase} />
-          <InfoRow label="Department" value={staff.department} icon={RiTeamLine}/>
-          
+          <InfoRow label="Role" value={staff.role === "ADMIN" ? "Admin" : "Staff"} icon={Briefcase} />
+          <InfoRow label="Branch" value={staff.branch || "—"} icon={MapPin} />
         </Section>
 
         {/* JOIN DATE */}
         <Section title="Employment">
           <InfoRow
             label="Join Date"
-            value={new Date(staff.joinDate).toLocaleDateString('en-NG', {
+            value={staff.joinDate ? new Date(staff.joinDate).toLocaleDateString('en-NG', {
               year: 'numeric',
               month: 'long',
               day: 'numeric'
-            })}
+            }) : "—"}
             icon={Calendar}
           />
-          <div className="text-xs text-ink/60">
-            {Math.floor(
-              (new Date().getTime() - new Date(staff.joinDate).getTime()) /
-                (1000 * 60 * 60 * 24)
-            )}{' '}
-            days employed
-          </div>
-        </Section>
-
-        {/* STATUS NOTE */}
-        {staff.status === 'suspended' && (
-          <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded flex gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-amber-900 text-sm">Account Suspended</p>
-              <p className="text-xs text-amber-800 mt-1">This account is temporarily unavailable</p>
+          {staff.joinDate && (
+            <div className="text-xs text-ink/60">
+              {Math.floor(
+                (new Date().getTime() - new Date(staff.joinDate).getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )}{' '}
+              days employed
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* FOOTER - ACTIONS */}
-      <div className="border-t border-border p-4 flex flex-col gap-2 gap-y-3">
-        <Button onClick={onEdit} className="w-full" size='sm'>
-          Edit Staff Member
-        </Button>
-        <Button
-          onClick={handleSuspend}
-          variant={staff.status === 'suspended' ? 'primary' : 'outline'}
-          className="w-full"
-          size='sm'
-        >
-          {staff.status === 'suspended' ? 'Activate' : 'Suspend'}
-        </Button>
-        <Button onClick={handleDelete} variant="danger" className="w-full" size='sm'>
-          Remove
-        </Button>
+          )}
+        </Section>
       </div>
     </div>
   )

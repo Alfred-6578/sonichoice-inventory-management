@@ -133,7 +133,7 @@ export default function FilterBar({
 
         <button
           onClick={clearFilters}
-          className="text-[11px] font-mono text-amber underline hover:text-amber-hover"
+          className="text-[11px] font-mono cursor-pointer text-amber underline hover:text-amber-hover"
         >
           Clear filters
         </button>

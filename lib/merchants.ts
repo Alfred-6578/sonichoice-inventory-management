@@ -61,7 +61,7 @@ export async function getMerchants(
 
 export type CreateMerchantPayload = {
   name: string;
-  email: string;
+  email?: string;
   phone: string;
   color: string;
   status: "ACTIVE" | "INACTIVE";

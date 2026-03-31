@@ -1,24 +1,21 @@
 export interface StaffMember {
   id: string
   name: string
-  av: string // avatar initials
-  color: string // hex color for avatar
-  role: string // e.g., "Operations Manager", "Driver", "Dispatcher"
-  department: string // e.g., "Operations", "Logistics", "Admin"
+  av: string
+  color: string
+  role: string
   email: string
   phone: string
   status: "active" | "inactive" | "suspended"
-  onlineStatus?: boolean
-  joinDate: string // format: "2024-01-15"
-  salary?: number // annual salary (optional)
-  branch?: string // branch assignment (optional)
+  branchId?: string
+  branch?: string
+  joinDate: string
 }
 
 export type StaffFilters = {
   search: string
-  status: "all" | "active" | "inactive" | "suspended"
-  department: string
   role: string
+  branch: string
 }
 
 export interface StaffDetailPanelProps {
