@@ -8,6 +8,7 @@ import FilterBar from '@/components/ui/FilterBar'
 import Overlay from '@/components/ui/Overlay'
 import MerchantFormPanel from '@/components/merchants/MerchantFormPanel'
 import { getMerchants, exportMerchants, ApiMerchant } from '@/lib/merchants'
+import { useDebounce } from '@/hooks/useDebounce'
 import { MerchantProfile } from '@/types/merchants'
 import { Plus, Download } from 'lucide-react'
 
@@ -96,22 +97,22 @@ export default function MerchantsPage() {
     status: 'all',
   })
 
+  const debouncedSearch = useDebounce(filters.search)
+
   const fetchMerchants = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getMerchants({
-        search: filters.search || undefined,
+        search: debouncedSearch || undefined,
         status: filters.status !== 'all' ? filters.status.toUpperCase() : undefined,
       })
-      console.log(res);
-      
       setMerchants((res.data || []).map(mapApiMerchant))
     } catch (err) {
       console.error("Failed to fetch merchants:", err)
     } finally {
       setLoading(false)
     }
-  }, [filters.search, filters.status])
+  }, [debouncedSearch, filters.status])
 
   useEffect(() => {
     fetchMerchants()

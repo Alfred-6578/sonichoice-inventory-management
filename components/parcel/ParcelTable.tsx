@@ -122,7 +122,7 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
                 <Table.Cell>
                   {p.merchants && p.merchants.length > 0 ? (
                     <div className="space-y-0.5">
-                      {p.merchants.slice(0, 2).map((m, i) => (
+                      {p.merchants.slice(0, 1).map((m, i) => (
                         <div key={m.name + i} className="flex items-center gap-1.5">
                           <div
                             className="w-5 h-5 rounded text-[9px] font-semibold flex items-center justify-center text-white shrink-0"

@@ -12,6 +12,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import Overlay from "@/components/ui/Overlay"
 import { getProducts, getProduct, ApiProduct, exportProducts } from "@/lib/products"
 import { getBranches } from "@/lib/branches"
+import { useDebounce } from "@/hooks/useDebounce"
 
 type InventoryFilters = {
   search: string
@@ -156,13 +157,15 @@ const InventoryPage = () => {
     merchant: "",
   })
 
+  const debouncedSearch = useDebounce(filters.search)
+
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     setError("")
     try {
       const res = await getProducts({
         page,
-        search: filters.search || undefined,
+        search: debouncedSearch || undefined,
       })
 
       const raw = res.products || res.data || (Array.isArray(res) ? res : [])
@@ -189,7 +192,7 @@ const InventoryPage = () => {
     } finally {
       setLoading(false)
     }
-  }, [page, filters.search])
+  }, [page, debouncedSearch])
 
   useEffect(() => {
     fetchProducts()

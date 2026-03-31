@@ -1,7 +1,4 @@
 import { StaffMember } from '@/types/staff'
-import AvatarName from '@/components/ui/AvatarName'
-import StatusBadge from '@/components/ui/StatusBadge'
-import { useMemo } from 'react'
 import { Table } from '../ui/Table'
 
 interface StaffTableProps {
@@ -11,17 +8,6 @@ interface StaffTableProps {
 }
 
 export default function StaffTable({ staff, onSelect, selectedId }: StaffTableProps) {
-  const getOnlineIcon = (online?: boolean) => {
-    if (online === undefined) return null
-    return (
-      <span
-        className={`inline-block w-2 h-2 rounded-full ${
-          online ? 'bg-green-500' : 'bg-gray-400'
-        }`}
-      />
-    )
-  }
-
   return (
     <div className="flex-1 overflow-auto">
       {staff.length > 0 ? (
@@ -29,10 +15,9 @@ export default function StaffTable({ staff, onSelect, selectedId }: StaffTablePr
           <Table.Head>
             <Table.Row className="bg-white sticky top-0">
               <Table.Cell head>Name</Table.Cell>
+              <Table.Cell head>Email</Table.Cell>
               <Table.Cell head>Role</Table.Cell>
-              <Table.Cell head>Department</Table.Cell>
-              <Table.Cell head>Status</Table.Cell>
-              <Table.Cell head>Phone</Table.Cell>
+              <Table.Cell head>Branch</Table.Cell>
               <Table.Cell head>Joined</Table.Cell>
             </Table.Row>
           </Table.Head>
@@ -42,29 +27,40 @@ export default function StaffTable({ staff, onSelect, selectedId }: StaffTablePr
               <>
                 <Table.Cell>
                   <div className="flex items-center gap-2">
-                    <AvatarName
-                      color={member.color}
-                      initials={member.av}
-                      name={member.name}
-                    />
-                    {getOnlineIcon(member.onlineStatus)}
+                    <div
+                      className="w-7 h-7 rounded-md flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                      style={{ backgroundColor: member.color }}
+                    >
+                      {member.av}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-ink truncate">{member.name}</div>
+                      {member.phone && (
+                        <div className="text-[10px] text-ink-subtle font-mono">{member.phone}</div>
+                      )}
+                    </div>
                   </div>
                 </Table.Cell>
                 <Table.Cell>
-                  <span className="text-sm font-medium">{member.role}</span>
+                  <span className="text-sm text-ink-muted font-mono">{member.email}</span>
                 </Table.Cell>
                 <Table.Cell>
-                  <span className="text-sm text-ink/70">{member.department}</span>
+                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                    member.role === "ADMIN"
+                      ? "bg-amber/10 text-amber-700 border border-amber/30"
+                      : "bg-surface border border-border text-ink-muted"
+                  }`}>
+                    {member.role === "ADMIN" ? "Admin" : "Staff"}
+                  </span>
                 </Table.Cell>
                 <Table.Cell>
-                  <StatusBadge status={member.status} />
+                  <span className="text-sm text-ink/70">{member.branch || "—"}</span>
                 </Table.Cell>
                 <Table.Cell>
-                  <span className="text-sm font-mono">{member.phone}</span>
-                </Table.Cell>
-                <Table.Cell>
-                  <span className="text-sm text-ink/60">
-                    {new Date(member.joinDate).toLocaleDateString('en-NG')}
+                  <span className="text-sm text-ink/60 font-mono">
+                    {member.joinDate
+                      ? new Date(member.joinDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : "—"}
                   </span>
                 </Table.Cell>
               </>

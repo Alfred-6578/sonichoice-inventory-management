@@ -11,6 +11,7 @@ import { Download, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { getParcels, getParcel, exportParcels, ApiParcel } from '@/lib/parcels'
+import { useDebounce } from '@/hooks/useDebounce'
 import { getBranches } from '@/lib/branches'
 import { getMerchants } from '@/lib/merchants'
 
@@ -113,16 +114,17 @@ const ParcelPage = () => {
     merchant: "",
   })
 
+  const debouncedSearch = useDebounce(filters.search)
+
   const fetchParcels = useCallback(async () => {
     setLoading(true)
     try {
-      // Find branch ID from name for API call
       const branchId = allBranchesRef.current.find(b => b.name === filters.branch)?.id
       const merchantId = allMerchantsRef.current.find(m => m.name === filters.merchant)?.id
 
       const res = await getParcels({
         page,
-        search: filters.search || undefined,
+        search: debouncedSearch || undefined,
         status: filters.status !== "all" ? (filters.status === "transit" ? "IN_TRANSIT" : filters.status.toUpperCase()) : undefined,
         merchantId: merchantId || undefined,
         fromBranchId: branchId || undefined,
@@ -139,7 +141,7 @@ const ParcelPage = () => {
     } finally {
       setLoading(false)
     }
-  }, [page, filters.search, filters.status, filters.branch, filters.merchant])
+  }, [page, debouncedSearch, filters.status, filters.branch, filters.merchant])
 
   useEffect(() => {
     fetchParcels()
@@ -334,9 +336,9 @@ const ParcelPage = () => {
 
         <ParcelFormPanel
           isOpen={openForm}
-          onClose={() => {
+          onClose={(didCreate) => {
             setOpenForm(false)
-            fetchParcels()
+            if (didCreate) fetchParcels()
           }}
           parcels={parcels}
           onBulkTransfer={(ids, toBranch) => {

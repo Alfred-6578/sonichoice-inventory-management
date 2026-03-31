@@ -56,6 +56,7 @@ export type RegisterPayload = {
   email: string;
   password: string;
   name: string;
+  phone?: string;
   branchId: string;
   role: "USER" | "ADMIN";
 };

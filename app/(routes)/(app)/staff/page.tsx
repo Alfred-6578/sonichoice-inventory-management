@@ -1,144 +1,222 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { getStoredUser } from '@/lib/auth'
+import { getUsers, ApiUser } from '@/lib/users'
+import { getBranches } from '@/lib/branches'
 import StaffTable from '@/components/staff/StaffTable'
 import StaffDetailPanel from '@/components/staff/StaffDetailPanel'
-import StaffFormPanel from '@/components/staff/StaffFormPanel'
 import PageHeader from '@/components/ui/PageHeader'
 import FilterBar from '@/components/ui/FilterBar'
-import Overlay from '@/components/ui/Overlay'
-import { STAFF, DEPARTMENTS } from '@/data/staffData'
 import { StaffFilters, StaffMember } from '@/types/staff'
-import { Plus, Download } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import { useDebounce } from '@/hooks/useDebounce'
+
+function mapApiUser(u: ApiUser): StaffMember {
+  const initials = (u.name || "??")
+    .split(" ")
+    .map(w => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+
+  return {
+    id: u.id,
+    name: u.name,
+    av: initials,
+    color: "#374151",
+    role: u.role || "USER",
+    email: u.email,
+    phone: u.phone || "",
+    status: "active",
+    branchId: u.branchId || "",
+    branch: u.branch?.name || "",
+    joinDate: u.createdAt
+      ? new Date(u.createdAt).toISOString().split("T")[0]
+      : "",
+  }
+}
 
 export default function StaffPage() {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null)
+  const router = useRouter()
+
+  // Block non-admin users
+  useEffect(() => {
+    const user = getStoredUser()
+    const role = (user?.role || "").toUpperCase()
+    if (role !== "ADMIN") {
+      router.replace("/dashboard")
+    }
+  }, [router])
+
+  const [staff, setStaff] = useState<StaffMember[]>([])
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([])
+  const allBranchesRef = useRef(allBranches)
+  allBranchesRef.current = allBranches
+
   const [filters, setFilters] = useState<StaffFilters>({
     search: '',
-    status: 'all',
-    department: '',
-    role: ''
+    role: '',
+    branch: '',
   })
 
-  const selectedStaff = STAFF.find((s) => s.id === selectedId) || null
+  const debouncedSearch = useDebounce(filters.search)
 
-  const filteredStaff = useMemo(() => {
-    return STAFF.filter((staff) => {
-      if (
-        filters.search &&
-        !staff.name.toLowerCase().includes(filters.search.toLowerCase()) &&
-        !staff.email.toLowerCase().includes(filters.search.toLowerCase())
-      )
-        return false
-      if (filters.status !== 'all' && staff.status !== filters.status) return false
-      if (filters.department && staff.department !== filters.department) return false
-      return true
-    })
-  }, [filters])
+  const fetchUsers = useCallback(async () => {
+    setLoading(true)
+    try {
+      const branchId = allBranchesRef.current.find(b => b.name === filters.branch)?.id
 
-  const activeStaff = STAFF.filter((s) => s.status === 'active').length
-  const onlineStaff = STAFF.filter((s) => s.onlineStatus).length
-  const suspendedStaff = STAFF.filter((s) => s.status === 'suspended').length
+      const res = await getUsers({
+        page,
+        search: debouncedSearch || undefined,
+        role: filters.role || undefined,
+        branchId: branchId || undefined,
+      })
+      setStaff((res.data || []).map(mapApiUser))
 
-  const handleEdit = () => {
-    if (selectedStaff) {
-      setEditingStaff(selectedStaff)
-      setFormOpen(true)
-      setSelectedId(null)
+      if (res.meta) {
+        setTotalCount(res.meta.total)
+        setTotalPages(res.meta.lastPage)
+      }
+    } catch (err) {
+      console.error("Failed to fetch users:", err)
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [page, debouncedSearch, filters.role, filters.branch])
 
-  const handleAddStaff = () => {
-    setEditingStaff(null)
-    setFormOpen(true)
-  }
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
-  const handleDelete = (id: string) => {
-    console.log('Delete staff:', id)
-    // TODO: Implement actual deletion
-  }
-
-  const handleSuspend = (id: string, newStatus: 'active' | 'suspended') => {
-    console.log('Update status:', id, newStatus)
-    // TODO: Implement actual status update
-  }
-
-  const handleSubmit = (formData: Partial<StaffMember>) => {
-    if (editingStaff) {
-      console.log('Update staff:', editingStaff.id, formData)
-      // TODO: Implement actual update
-    } else {
-      console.log('Add new staff:', formData)
-      // TODO: Implement actual add
-    }
-  }
+  // Fetch branches for filter dropdown
+  useEffect(() => {
+    getBranches().then(branches => {
+      setAllBranches(branches.map(b => ({ id: b.id, name: b.name })))
+    }).catch(() => {})
+  }, [])
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        headerText="Team · 8 members"
+        headerText={`Team · ${totalCount} members`}
         mainText="Staff Management"
-        subText={`${activeStaff} active · ${onlineStaff} online · ${suspendedStaff} suspended`}
-        button1="Export"
-        button2="Add Staff"
-        button1Icon={<Download size={16} />}
+        subText={`${staff.length} shown · Page ${page} of ${totalPages}`}
+        loading={loading}
+        button2="Register User"
         button2Icon={<Plus size={16} />}
-        onButton2={handleAddStaff}
+        onButton2={() => router.push('/register')}
       />
 
       <FilterBar
         filters={filters}
         setFilters={setFilters}
-        total={filteredStaff.length}
+        total={staff.length}
+        onChange={(f) => {
+          if ((f as StaffFilters).role !== filters.role) setPage(1)
+          if ((f as StaffFilters).branch !== filters.branch) setPage(1)
+          setFilters(f as StaffFilters)
+        }}
         filterConfigs={[
           {
-            label: 'Status',
-            key: 'status',
+            label: 'Role',
+            key: 'role',
             options: [
-              { value: 'all', label: 'All Staff' },
-              { value: 'active', label: 'Active' },
-              { value: 'suspended', label: 'Suspended' },
-              { value: 'inactive', label: 'Inactive' }
-            ]
+              { value: 'ADMIN', label: 'Admin' },
+              { value: 'USER', label: 'Staff' },
+            ],
           },
           {
-            label: 'Department',
-            key: 'department',
-            options: [
-              { value: '', label: 'All Departments' },
-              ...DEPARTMENTS.map((dept) => ({ value: dept, label: dept }))
-            ]
-          }
+            label: 'Branch',
+            key: 'branch',
+            options: allBranches.map(b => ({ value: b.name, label: b.name })),
+          },
         ]}
+        resetKeys={["search", "role", "branch"]}
+        disabled={loading}
       />
 
-      <StaffTable
-        staff={filteredStaff}
-        onSelect={(staff) => setSelectedId(staff.id)}
-        selectedId={selectedId}
-      />
+      {loading ? (
+        <StaffTableSkeleton />
+      ) : (
+        <StaffTable
+          staff={staff}
+          onSelect={(member) => setSelectedStaff(member)}
+        />
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pb-4">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 text-sm border border-ink-subtle text-ink-subtle rounded-lg disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-ink-muted">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="px-3 py-1.5 text-sm border border-ink-subtle text-ink-subtle rounded-lg disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {selectedStaff && (
         <StaffDetailPanel
           staff={selectedStaff}
-          onClose={() => setSelectedId(null)}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onSuspend={handleSuspend}
+          onClose={() => setSelectedStaff(null)}
+          onUpdated={() => {
+            setSelectedStaff(null)
+            fetchUsers()
+          }}
         />
       )}
+    </div>
+  )
+}
 
-      <Overlay isOpen={formOpen} onClose={() => setFormOpen(false)} />
-      {formOpen && (
-        <StaffFormPanel
-          isOpen={formOpen}
-          onClose={() => setFormOpen(false)}
-          initialData={editingStaff}
-          onSubmit={handleSubmit}
-        />
-      )}
+function StaffTableSkeleton() {
+  return (
+    <div className="flex-1 overflow-auto">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-white border-b border-gray-200">
+            {["Name", "Email", "Role", "Branch", "Joined"].map((h) => (
+              <th key={h} className="text-left px-3 py-2.5 text-xs font-medium text-gray-400 uppercase">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <tr key={i} className="border-b border-gray-100">
+              <td className="px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-gray-200 rounded-md animate-pulse" />
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </td>
+              <td className="px-3 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
+              <td className="px-3 py-3"><div className="h-5 w-14 bg-gray-100 rounded animate-pulse" /></td>
+              <td className="px-3 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+              <td className="px-3 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

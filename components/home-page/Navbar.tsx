@@ -37,7 +37,7 @@ const Navbar = () => {
           href="/login"
           className="flex items-center gap-2 font-semibold bg-amber text-white px-4 py-2 rounded-lg text-sm hover:opacity-90 transition"
         >
-          Get started
+          Sign In
           <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current">
             <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 
             5.59L12 20l8-8z"/>

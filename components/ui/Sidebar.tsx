@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import SidebarItem from "./SidebarItem";
 import Link from "next/link";
-import { MdDashboard, MdInventory2, MdLocationOn, MdPerson, MdSettings } from "react-icons/md";
+import { MdDashboard, MdInventory2, MdLocationOn, MdPerson } from "react-icons/md";
 import { BiSolidPackage } from "react-icons/bi";
 import { IoIosPeople } from "react-icons/io";
 import { X, LogOut } from "lucide-react";
@@ -18,16 +18,13 @@ export default function Sidebar(
     setIsOpen: (val:boolean)=>void
   }
 ) {
-  const [role, setRole] = useState("staff");
   const [user, setUser] = useState<{ name: string; role: string } | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const isAdmin = user?.role === "ADMIN" || user?.role === "admin";
 
   useEffect(() => {
     const stored = getStoredUser();
-    if (stored) {
-      setUser(stored);
-      if (stored.role === "ADMIN" || stored.role === "admin") setRole("admin");
-    }
+    if (stored) setUser(stored);
   }, []);
 
   const handleLogout = async () => {
@@ -123,7 +120,7 @@ export default function Sidebar(
         ))}
 
         {/* ADMIN */}
-        {role === "admin" && (
+        {isAdmin && (
           <>
             <div className="text-[9px] text-[#9ca3af] uppercase tracking-widest px-2 mt-4 mb-1">
               Admin
@@ -151,31 +148,6 @@ export default function Sidebar(
         )}
       </nav>
 
-      {/* ROLE SWITCH */}
-      <div className="flex gap-2 p-2 border-t border-[#e4e7ec]">
-        <button
-          onClick={() => setRole("staff")}
-          className={`flex-1 text-[10px] py-1 rounded border transition ${
-            role === "staff"
-              ? "bg-[#111827] text-white border-[#111827]"
-              : "text-[#9ca3af] border-[#e4e7ec] hover:bg-[#f4f5f7]"
-          }`}
-        >
-          Staff
-        </button>
-
-        <button
-          onClick={() => setRole("admin")}
-          className={`flex-1 text-[10px] py-1 rounded border transition ${
-            role === "admin"
-              ? "bg-[#111827] text-white border-[#111827]"
-              : "text-[#9ca3af] border-[#e4e7ec] hover:bg-[#f4f5f7]"
-          }`}
-        >
-          Admin
-        </button>
-      </div>
-
       {/* USER */}
       <div className="p-3 border-t border-[#e4e7ec]">
         <div className="flex items-center gap-2 p-2 rounded-md">
@@ -190,7 +162,7 @@ export default function Sidebar(
               {user?.name || "User"}
             </div>
             <div className="text-[10px] text-[#9ca3af] capitalize">
-              {role === "admin" ? "Admin" : "Staff"}
+              {isAdmin ? "Admin" : "Staff"}
             </div>
           </div>
 
