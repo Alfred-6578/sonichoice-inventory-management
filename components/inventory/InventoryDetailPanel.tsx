@@ -326,7 +326,7 @@ export default function InventoryDetailPanel({
         )}
 
         <div className="px-4.5 py-4 border-b border-gray-200">
-          <div className="grid grid-cols-3 gap-0 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden mb-3">
+          <div className="grid grid-cols-2 gap-0 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden mb-3">
             <div className="px-3.5 py-3 text-center border-r border-gray-200">
               <div className={`font-display text-xl font-bold letter-spacing-tighter leading-5 ${
                 sClass === 'red' ? 'text-red-600' : sClass === 'amber' ? 'text-amber-600' : 'text-green-600'
@@ -335,12 +335,12 @@ export default function InventoryDetailPanel({
               </div>
               <div className={`font-mono text-[10px] text-gray-400 uppercase letter-spacing-wider mt-0.75 ${dm_mono.className}`}>Total Stock</div>
             </div>
-            <div className="px-3.5 py-3 text-center border-r border-gray-200">
+            {/* <div className="px-3.5 py-3 text-center border-r border-gray-200">
               <div className={`font-display text-xl font-bold text-amber-600 letter-spacing-tighter leading-5 ${syne.className}`}>
                 {dispatched.toLocaleString()}
               </div>
               <div className={`font-mono text-[10px] text-gray-400 uppercase letter-spacing-wider mt-0.75 ${dm_mono.className}`}>Dispatched</div>
-            </div>
+            </div> */}
             <div className="px-3.5 py-3 text-center">
               <div className={`font-display text-xl font-bold text-gray-900 letter-spacing-tighter leading-5 ${syne.className}`}>
                 {item.lowAlert}
@@ -356,7 +356,7 @@ export default function InventoryDetailPanel({
           <div className="font-mono text-xs text-gray-400 uppercase letter-spacing-wider mb-2.5">Product Info</div>
           <div className="bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
             <div className="flex justify-between items-center px-3.25 py-2.25 border-b border-gray-200">
-              <span className="text-xs text-gray-500">SKU</span>
+              <span className="text-xs text-gray-500">Tracking ID</span>
               <span className="text-xs text-gray-900 font-medium font-mono">{item.sku}</span>
             </div>
             {/* <div className="flex justify-between items-center px-3.25 py-2.25 border-b border-gray-200">

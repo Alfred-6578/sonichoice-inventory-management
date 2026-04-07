@@ -96,11 +96,11 @@ export default function DetailPanel({ branch, onClose, onUpdated }: Props) {
           dot: "bg-amber",
           label: "In Transit",
         };
-      case "delivered":
+      case "received":
         return {
           wrapper: "bg-delivered-bg text-[#14532d] border-delivered-border",
           dot: "bg-delivered",
-          label: "Delivered",
+          label: "Received",
         };
       default:
         return {
@@ -193,7 +193,7 @@ export default function DetailPanel({ branch, onClose, onUpdated }: Props) {
         <div className="grid grid-cols-2 border-b border-[0.5px] border-border">
           <Metric label="Holding" value={branch.holding} sub="parcels on-site" />
           <Metric label="In Transit" value={branch.transit} sub="moving now" variant="amber" />
-          <Metric label="Delivered" value={branch.delivered} sub="this month" variant="green" />
+          <Metric label="Received" value={branch.delivered} sub="this month" variant="green" />
         </div>
 
         {/* INFO */}
@@ -222,7 +222,7 @@ export default function DetailPanel({ branch, onClose, onUpdated }: Props) {
                 <div className="text-[11px] text-ink-subtle font-m">{s.role}</div>
               </div>
 
-              <span
+              {/* <span
                 className={`ml-auto text-[9px] px-[7px] py-[2px] rounded-[4px] font-m border ${
                   s.online
                     ? "bg-delivered-bg text-delivered border-delivered-border"
@@ -230,7 +230,7 @@ export default function DetailPanel({ branch, onClose, onUpdated }: Props) {
                 }`}
               >
                 {s.online ? "Online" : "Offline"}
-              </span>
+              </span> */}
             </div>
           ))}
         </Section>

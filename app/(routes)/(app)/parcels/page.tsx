@@ -10,7 +10,9 @@ import { Filters, Parcel } from '@/types/parcelTypes'
 import { Download, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { getParcels, getParcel, exportParcels, ApiParcel } from '@/lib/parcels'
+import { getParcels, getParcel, ApiParcel } from '@/lib/parcels'
+import ExportPreviewModal from '@/components/ui/ExportPreviewModal'
+import { ExportConfig } from '@/lib/export'
 import { useDebounce } from '@/hooks/useDebounce'
 import { getBranches } from '@/lib/branches'
 import { getMerchants } from '@/lib/merchants'
@@ -57,7 +59,8 @@ function mapApiParcel(p: ApiParcel): Parcel {
     to: p.toBranch?.name || "",
     current: p.currentBranch?.name || "",
     status: statusMap[p.status] || "pending",
-    date: p.dateShipped ? new Date(p.dateShipped).toISOString().split("T")[0] : p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : "",
+    dateSent: p.dateShipped ? new Date(p.dateShipped).toISOString().split("T")[0] : p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : "",
+    dateReceived: p.dateDelivered ? new Date(p.dateDelivered).toISOString().split("T")[0] : "",
     notes: p.additionalInfo || "",
     client: merchantName,
     clientCo: "",
@@ -92,9 +95,7 @@ const ParcelPage = () => {
   const hasAppliedParams = useRef(false)
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null)
   const [openForm, setOpenForm] = useState(false)
-  const [showExportMenu, setShowExportMenu] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const exportRef = useRef<HTMLDivElement>(null)
+  const [showExportPreview, setShowExportPreview] = useState(false)
   const [parcels, setParcels] = useState<Parcel[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -169,28 +170,30 @@ const ParcelPage = () => {
     setFilters(prev => ({ ...prev, ...updates }))
   }
 
-  // Close export menu on outside click
-  useEffect(() => {
-    if (!showExportMenu) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
-        setShowExportMenu(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [showExportMenu])
-
-  const handleExport = async (format: "pdf" | "excel") => {
-    setShowExportMenu(false)
-    setExporting(true)
-    try {
-      await exportParcels(format)
-    } catch (err) {
-      console.error("Export failed:", err)
-    } finally {
-      setExporting(false)
-    }
+  const exportConfig: ExportConfig = {
+    title: "Parcels Report",
+    subtitle: `${totalCount} parcels · ${counts.transit} in transit · ${counts.received} received`,
+    filename: "sonichoice-parcels",
+    columns: [
+      { header: "Parcel ID", key: "id", width: 16 },
+      { header: "Merchant", key: "merchant", width: 22 },
+      { header: "From", key: "from", width: 18 },
+      { header: "To", key: "to", width: 18 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Size", key: "size", width: 10 },
+      { header: "Date Sent", key: "dateSent", width: 14 },
+      { header: "Date Received", key: "dateReceived", width: 14 },
+    ],
+    rows: parcels.map((p) => ({
+      id: p.id,
+      merchant: p.client,
+      from: p.from,
+      to: p.to,
+      status: p.status,
+      size: p.size,
+      dateSent: p.dateSent || "",
+      dateReceived: p.dateReceived || "",
+    })),
   }
 
   // Fetch branches and merchants for filter dropdowns
@@ -238,31 +241,11 @@ const ParcelPage = () => {
             loading={loading}
             button1="Export"
             button1Icon={<Download/>}
-            onButton1={() => setShowExportMenu(!showExportMenu)}
+            onButton1={() => setShowExportPreview(true)}
             button2="Log Parcel"
             button2Icon={<Plus/>}
             onButton2={()=> setOpenForm(true)}
         />
-
-        {/* Export dropdown */}
-        <div ref={exportRef} className="relative w-full right-0 inline-block self-start -mt-2">
-          {showExportMenu && (
-            <div className="absolute max-md:left-0 -top-15 xsm:-top-3 md:-top-8 md:right-4 mt-1 bg-white border border-border rounded-lg shadow-lg z-20">
-              <button
-                onClick={() => handleExport("pdf")}
-                className="text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition first:rounded-t-lg"
-              >
-                Export as PDF
-              </button>
-              <button
-                onClick={() => handleExport("excel")}
-                className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition border-t border-border last:rounded-b-lg"
-              >
-                Export as Excel
-              </button>
-            </div>
-          )}
-        </div>
 
         <div className="">
           <StatusPillsContainer
@@ -350,6 +333,12 @@ const ParcelPage = () => {
           isOpen={openForm}
           onClose={() => setOpenForm(false)}
           zIndex={59}
+        />
+
+        <ExportPreviewModal
+          isOpen={showExportPreview}
+          onClose={() => setShowExportPreview(false)}
+          config={exportConfig}
         />
     </div>
   )

@@ -132,7 +132,8 @@ export const PARCELS: Parcel[] = [
     recipient: "Mrs. Folake Ojo",
     recipientPhone: "0801-555-1010",
     status: "transit",
-    date: "2026-03-17",
+    dateSent: "2026-03-16",
+    dateReceived: "",
     notes: "",
     history: [
       { action: "Picked up", branch: "Enugu (Head Office)", date: "2026-03-16", done: true },
@@ -155,7 +156,8 @@ export const PARCELS: Parcel[] = [
     recipient: "Alhaji Garba Musa",
     recipientPhone: "0808-222-6060",
     status: "transit",
-    date: "2026-03-16",
+    dateSent: "2026-03-15",
+    dateReceived: "",
     notes: "Fragile — handle with care",
     history: [
       { action: "Picked up", branch: "Ebonyi", date: "2026-03-15", done: true },
@@ -178,7 +180,8 @@ export const PARCELS: Parcel[] = [
     recipient: "Yusuf Lawan",
     recipientPhone: "0802-333-5050",
     status: "pending",
-    date: "2026-03-15",
+    dateSent: "",
+    dateReceived: "",
     notes: "",
     history: [
       { action: "Picked up", branch: "Nsukka", date: "2026-03-14", done: true },
@@ -199,7 +202,8 @@ export const PARCELS: Parcel[] = [
     recipient: "Aisha Bello",
     recipientPhone: "0803-777-9090",
     status: "received",
-    date: "2026-03-14",
+    dateSent: "2026-03-13",
+    dateReceived: "2026-03-14",
     notes: "Delivered on time",
     history: [
       { action: "Picked up", branch: "Ebonyi", date: "2026-03-13", done: true },
@@ -220,7 +224,8 @@ export const PARCELS: Parcel[] = [
     recipient: "Adewale Ade",
     recipientPhone: "0804-666-8080",
     status: "transit",
-    date: "2026-03-18",
+    dateSent: "2026-03-17",
+    dateReceived: "",
     notes: "Handle with care",
     history: [
       { action: "Picked up", branch: "Nsukka", date: "2026-03-17", done: true },

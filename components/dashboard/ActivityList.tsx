@@ -2,6 +2,7 @@
 
 import { Activity } from "@/types/activity";
 import { activityStyles } from "@/utils/activityMap";
+import Link from "next/link";
 
 interface ActivityListProps {
   data: Activity[];
@@ -16,12 +17,12 @@ export default function ActivityList({ data }: ActivityListProps) {
           Activity
         </span>
 
-        <button className="text-sm text-[#6b7280] flex items-center gap-1 hover:text-[#111827] transition">
+        <Link href="/activity" className="text-sm text-[#6b7280] flex items-center gap-1 hover:text-[#111827] transition">
           See more
           <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
             <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
           </svg>
-        </button>
+        </Link>
       </div>
 
       {/* CARD */}

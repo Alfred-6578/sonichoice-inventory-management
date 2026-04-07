@@ -2,12 +2,14 @@
 
 import { Branch } from "@/types/branch";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface BranchListProps {
   data: Branch[];
 }
 
 export default function BranchList({ data }: BranchListProps) {
+  const router = useRouter();
   const max = Math.max(...data.map((b) => b.parcels)); 
 
   return (
@@ -39,6 +41,7 @@ export default function BranchList({ data }: BranchListProps) {
           return (
             <div
               key={branch.id}
+              onClick={() => router.push(`/branches?branchId=${branch.id}`)}
               className="flex items-center gap-3 px-4 py-3 border-b border-[#e4e7ec] last:border-none hover:bg-[#f4f5f7] transition cursor-pointer"
             >
               {/* DOT */}

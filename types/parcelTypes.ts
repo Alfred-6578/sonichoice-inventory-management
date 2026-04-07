@@ -76,7 +76,8 @@ export type Parcel = {
   to: string;
   current: string;
   status: ParcelStatus;
-  date: string;
+  dateSent: string;
+  dateReceived: string;
   notes?: string;
   client: string;
   clientCo?: string;

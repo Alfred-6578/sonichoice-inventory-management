@@ -9,7 +9,7 @@ export const metricsData: MetricItem[] = [
     delta: { type: "positive", value: "+1 today" },
   },
   {
-    label: "Delivered",
+    label: "Received",
     value: 24,
     sub: "this month",
     tone: "green",

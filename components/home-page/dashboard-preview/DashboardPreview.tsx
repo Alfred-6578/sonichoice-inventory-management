@@ -119,7 +119,7 @@ export default function DashboardPreview() {
               name="Kemi Adeyemi"
               initials="KA"
               color="#2563eb"
-              status="Delivered"
+              status="Received"
             />
 
           </div>

@@ -1,16 +1,18 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import MerchantGrid from '@/components/merchants/MerchantGrid'
 import MerchantDetailPanel from '@/components/merchants/MerchantDetailPanel'
 import PageHeader from '@/components/ui/PageHeader'
 import FilterBar from '@/components/ui/FilterBar'
 import Overlay from '@/components/ui/Overlay'
 import MerchantFormPanel from '@/components/merchants/MerchantFormPanel'
-import { getMerchants, exportMerchants, ApiMerchant } from '@/lib/merchants'
+import { getMerchants, ApiMerchant } from '@/lib/merchants'
 import { useDebounce } from '@/hooks/useDebounce'
 import { MerchantProfile } from '@/types/merchants'
 import { Plus, Download } from 'lucide-react'
+import ExportPreviewModal from '@/components/ui/ExportPreviewModal'
+import { ExportConfig } from '@/lib/export'
 
 type MerchantFilters = {
   search: string
@@ -63,33 +65,7 @@ function mapApiMerchant(m: ApiMerchant): MerchantProfile {
 export default function MerchantsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
-  const [showExportMenu, setShowExportMenu] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const exportRef = useRef<HTMLDivElement>(null)
-
-  // Close export menu on outside click
-  useEffect(() => {
-    if (!showExportMenu) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
-        setShowExportMenu(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [showExportMenu])
-
-  const handleExport = async (format: "pdf" | "excel") => {
-    setShowExportMenu(false)
-    setExporting(true)
-    try {
-      await exportMerchants(format)
-    } catch (err) {
-      console.error("Export failed:", err)
-    } finally {
-      setExporting(false)
-    }
-  }
+  const [showExportPreview, setShowExportPreview] = useState(false)
   const [merchants, setMerchants] = useState<MerchantProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<MerchantFilters>({
@@ -121,6 +97,26 @@ export default function MerchantsPage() {
   const selectedMerchant = merchants.find(m => m.id === selectedId) || null
   const activeMerchants = merchants.filter(m => m.status === 'active').length
 
+  const exportConfig: ExportConfig = {
+    title: "Merchants Report",
+    subtitle: `${merchants.length} merchants · ${activeMerchants} active`,
+    filename: "sonichoice-merchants",
+    columns: [
+      { header: "Name", key: "name", width: 24 },
+      { header: "Email", key: "email", width: 24 },
+      { header: "Phone", key: "phone", width: 16 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Products", key: "products", width: 10 },
+    ],
+    rows: merchants.map((m) => ({
+      name: m.name,
+      email: m.email || "",
+      phone: m.phone || "",
+      status: m.status,
+      products: m.products.length,
+    })),
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -130,31 +126,11 @@ export default function MerchantsPage() {
         loading={loading}
         button1="Export"
         button1Icon={<Download size={16} />}
-        onButton1={() => setShowExportMenu(!showExportMenu)}
+        onButton1={() => setShowExportPreview(true)}
         button2="Add Merchant"
         button2Icon={<Plus size={16} />}
         onButton2={() => setFormOpen(true)}
       />
-
-      {/* Export dropdown */}
-      <div ref={exportRef} className="relative w-full inline-block self-start -mt-2">
-        {showExportMenu && (
-          <div className="absolute max-md:left-0 -top-15 xsm:-top-3 md:-top-8 md:right-4 mt-1 bg-white border border-border rounded-lg shadow-lg z-20">
-            <button
-              onClick={() => handleExport("pdf")}
-              className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition first:rounded-t-lg"
-            >
-              Export as PDF
-            </button>
-            <button
-              onClick={() => handleExport("excel")}
-              className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition border-t border-border last:rounded-b-lg"
-            >
-              Export as Excel
-            </button>
-          </div>
-        )}
-      </div>
 
       <FilterBar
         filters={filters}
@@ -207,6 +183,12 @@ export default function MerchantsPage() {
           }}
         />
       )}
+
+      <ExportPreviewModal
+        isOpen={showExportPreview}
+        onClose={() => setShowExportPreview(false)}
+        config={exportConfig}
+      />
     </div>
   )
 }

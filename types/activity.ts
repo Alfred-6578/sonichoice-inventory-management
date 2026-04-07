@@ -1,6 +1,6 @@
 // types/activity.ts
 
-export type ActivityType = "transit" | "delivered" | "new" | "movement";
+export type ActivityType = "transit" | "received" | "new" | "movement";
 
 export interface Activity {
   id: string;

@@ -33,8 +33,8 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
 
   const sortedData = useMemo(() => {
     return [...data].sort((a, b) => {
-      let A: any = a[sortKey];
-      let B: any = b[sortKey];
+      let A: any = sortKey === "date" ? a.dateSent : a[sortKey];
+      let B: any = sortKey === "date" ? b.dateSent : b[sortKey];
 
       if (sortKey === "date") {
         A = new Date(A).getTime();
@@ -97,7 +97,7 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
                 className={`${sortKey === 'date' && " text-ink-muted"} cursor-pointer`}
                 onClick={() => handleSort("date")}
               >
-                Date In
+                Date Sent
                 {sortKey === 'date' ? (
                   asc ? (
                     <span className="text-[8px] ml-1 font-extrabold">↑</span>
@@ -106,6 +106,7 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
                   )
                 ) : null}
               </Table.Cell>
+              <Table.Cell head>Date Received</Table.Cell>
             </Table.Row>
           </Table.Head>
 
@@ -170,9 +171,14 @@ export default function ParcelTable({ data, onClearFilters, setSelectedParcel }:
                   <StatusBadge status={p.status}/>
                 </Table.Cell>
 
-                {/* Date */}
+                {/* Date Sent */}
                 <Table.Cell className="text-[11px] font-mono text-ink-subtle">
-                  {p.date}
+                  {p.dateSent || "—"}
+                </Table.Cell>
+
+                {/* Date Received */}
+                <Table.Cell className="text-[11px] font-mono text-ink-subtle">
+                  {p.dateReceived || "—"}
                 </Table.Cell>
               </>
             )}

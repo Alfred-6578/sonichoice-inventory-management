@@ -10,17 +10,23 @@ import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { getDashboard, DashboardData } from '@/lib/dashboard'
+import { getActivityLogs, ActivityLogEntry } from '@/lib/activityLogs'
 
 const Dashboard = () => {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [data, setData] = useState<DashboardData | null>(null)
+    const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([])
 
     const fetchDashboard = useCallback(async () => {
         setLoading(true)
         try {
-            const d = await getDashboard()
+            const [d, activity] = await Promise.all([
+                getDashboard(),
+                getActivityLogs({ page: 1 }).catch(() => null),
+            ])
             setData(d)
+            if (activity) setActivityLogs(activity.data || [])
         } catch (err) {
             console.error("Failed to fetch dashboard:", err)
         } finally {
@@ -183,13 +189,30 @@ const Dashboard = () => {
         }
     }
 
-    // Map recentActivity
-    const activityData = (data?.recentActivity || []).map((a, i) => ({
-        id: a.id || String(i),
-        type: (a.type || "new") as "transit" | "delivered" | "new" | "movement",
-        title: a.title || "",
-        meta: a.meta || "",
-        time: a.time || "",
+    // Map activity logs to ActivityList format
+    const detectActivityType = (action: string): "transit" | "received" | "new" | "movement" => {
+        const a = action.toLowerCase()
+        if (a.includes("transit") || a.includes("dispatch")) return "transit"
+        if (a.includes("received") || a.includes("delivered")) return "received"
+        if (a.includes("move") || a.includes("transfer")) return "movement"
+        return "new"
+    }
+    const timeAgo = (iso: string): string => {
+        const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+        if (seconds < 60) return `${seconds}s`
+        const m = Math.floor(seconds / 60)
+        if (m < 60) return `${m}m`
+        const h = Math.floor(m / 60)
+        if (h < 24) return `${h}h`
+        const d = Math.floor(h / 24)
+        return `${d}d`
+    }
+    const activityData = activityLogs.slice(0, 5).map((log, i) => ({
+        id: log.id || String(i),
+        type: detectActivityType(log.action),
+        title: log.action,
+        meta: [log.userName, log.branchName].filter(Boolean).join(" · "),
+        time: timeAgo(log.createdAt),
     }))
 
     return (

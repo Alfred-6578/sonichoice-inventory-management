@@ -27,16 +27,16 @@ const staffData: Staff[][] = [
 const parcelsData: Parcel[][] = [
   [
     { id: "PCL-009", desc: "Clothing bales", client: "Kemi Adeyemi", status: "transit" },
-    { id: "PCL-005", desc: "Fabric rolls (6)", client: "Kemi Adeyemi", status: "delivered" },
-    { id: "PCL-003", desc: "Books & stationery", client: "Tunde Bakare", status: "delivered" },
+    { id: "PCL-005", desc: "Fabric rolls (6)", client: "Kemi Adeyemi", status: "received" },
+    { id: "PCL-003", desc: "Books & stationery", client: "Tunde Bakare", status: "received" },
   ],
   [
     { id: "PCL-008", desc: "Monitor screens x3", client: "Ngozi Eze", status: "transit" },
-    { id: "PCL-001", desc: "Clothing bales (batch 1)", client: "Kemi Adeyemi", status: "delivered" },
+    { id: "PCL-001", desc: "Clothing bales (batch 1)", client: "Kemi Adeyemi", status: "received" },
   ],
   [
     { id: "PCL-006", desc: "Agricultural documents", client: "Aliyu Musa", status: "pending" },
-    { id: "PCL-004", desc: "Laptop x2", client: "Ngozi Eze", status: "delivered" },
+    { id: "PCL-004", desc: "Laptop x2", client: "Ngozi Eze", status: "received" },
   ],
 ];
 
