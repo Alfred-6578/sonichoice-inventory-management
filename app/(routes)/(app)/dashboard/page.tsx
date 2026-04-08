@@ -11,15 +11,18 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { getDashboard, DashboardData } from '@/lib/dashboard'
 import { getActivityLogs, ActivityLogEntry } from '@/lib/activityLogs'
+import ErrorCard from '@/components/ui/ErrorCard'
 
 const Dashboard = () => {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState("")
     const [data, setData] = useState<DashboardData | null>(null)
     const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([])
 
     const fetchDashboard = useCallback(async () => {
         setLoading(true)
+        setError("")
         try {
             const [d, activity] = await Promise.all([
                 getDashboard(),
@@ -29,6 +32,7 @@ const Dashboard = () => {
             if (activity) setActivityLogs(activity.data || [])
         } catch (err) {
             console.error("Failed to fetch dashboard:", err)
+            setError(err instanceof Error ? err.message : "Failed to load dashboard")
         } finally {
             setLoading(false)
         }
@@ -232,6 +236,8 @@ const Dashboard = () => {
 
             {loading ? (
                 <DashboardSkeleton />
+            ) : error ? (
+                <ErrorCard message={error} onRetry={fetchDashboard} />
             ) : (
                 <>
                     <MetricsGrid data={metricsData} />

@@ -7,6 +7,7 @@ import BranchFormPanel from '@/components/branches/BranchFormPanel'
 import Overlay from '@/components/ui/Overlay'
 import { BranchDetails } from '@/types/branch';
 import { getBranches, ApiBranch } from '@/lib/branches';
+import ErrorCard from '@/components/ui/ErrorCard';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 
@@ -87,6 +88,7 @@ const BranchesPage = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [branches, setBranches] = useState<BranchDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // Handle branchId query param (from dashboard click)
   useEffect(() => {
@@ -102,13 +104,14 @@ const BranchesPage = () => {
 
   const fetchBranches = useCallback(async () => {
     setLoading(true)
+    setError("")
     try {
       const data = await getBranches()
-      
-      
       setBranches(data.map(mapApiBranch))
     } catch (err) {
       console.error("Failed to fetch branches:", err)
+      setError(err instanceof Error ? err.message : "Failed to load branches")
+      setBranches([])
     } finally {
       setLoading(false)
     }
@@ -160,6 +163,8 @@ const BranchesPage = () => {
 
             {loading ? (
               <BranchGridSkeleton />
+            ) : error ? (
+              <ErrorCard message={error} onRetry={fetchBranches} />
             ) : (
               <BranchGrid branches={branches} onSelect={setSelectedId} selectedId={selectedId}/>
             )}

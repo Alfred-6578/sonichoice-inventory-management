@@ -13,6 +13,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { getParcels, getParcel, ApiParcel } from '@/lib/parcels'
 import ExportPreviewModal from '@/components/ui/ExportPreviewModal'
 import { ExportConfig } from '@/lib/export'
+import ErrorCard from '@/components/ui/ErrorCard'
 import { useDebounce } from '@/hooks/useDebounce'
 import { getBranches } from '@/lib/branches'
 import { getMerchants } from '@/lib/merchants'
@@ -98,6 +99,7 @@ const ParcelPage = () => {
   const [showExportPreview, setShowExportPreview] = useState(false)
   const [parcels, setParcels] = useState<Parcel[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -119,6 +121,7 @@ const ParcelPage = () => {
 
   const fetchParcels = useCallback(async () => {
     setLoading(true)
+    setError("")
     try {
       const branchId = allBranchesRef.current.find(b => b.name === filters.branch)?.id
       const merchantId = allMerchantsRef.current.find(m => m.name === filters.merchant)?.id
@@ -139,6 +142,8 @@ const ParcelPage = () => {
       }
     } catch (err) {
       console.error("Failed to fetch parcels:", err)
+      setError(err instanceof Error ? err.message : "Failed to load parcels")
+      setParcels([])
     } finally {
       setLoading(false)
     }
@@ -279,6 +284,8 @@ const ParcelPage = () => {
 
         {loading ? (
           <ParcelTableSkeleton />
+        ) : error ? (
+          <ErrorCard message={error} onRetry={fetchParcels} />
         ) : (
           <ParcelTable
             data={filteredData} setSelectedParcel={setSelectedParcel} onClearFilters={clearFilters}

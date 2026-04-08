@@ -13,6 +13,7 @@ import { MerchantProfile } from '@/types/merchants'
 import { Plus, Download } from 'lucide-react'
 import ExportPreviewModal from '@/components/ui/ExportPreviewModal'
 import { ExportConfig } from '@/lib/export'
+import ErrorCard from '@/components/ui/ErrorCard'
 
 type MerchantFilters = {
   search: string
@@ -68,6 +69,7 @@ export default function MerchantsPage() {
   const [showExportPreview, setShowExportPreview] = useState(false)
   const [merchants, setMerchants] = useState<MerchantProfile[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [filters, setFilters] = useState<MerchantFilters>({
     search: '',
     status: 'all',
@@ -77,6 +79,7 @@ export default function MerchantsPage() {
 
   const fetchMerchants = useCallback(async () => {
     setLoading(true)
+    setError("")
     try {
       const res = await getMerchants({
         search: debouncedSearch || undefined,
@@ -85,6 +88,8 @@ export default function MerchantsPage() {
       setMerchants((res.data || []).map(mapApiMerchant))
     } catch (err) {
       console.error("Failed to fetch merchants:", err)
+      setError(err instanceof Error ? err.message : "Failed to load merchants")
+      setMerchants([])
     } finally {
       setLoading(false)
     }
@@ -153,6 +158,8 @@ export default function MerchantsPage() {
 
       {loading ? (
         <MerchantGridSkeleton />
+      ) : error ? (
+        <ErrorCard message={error} onRetry={fetchMerchants} />
       ) : (
         <MerchantGrid
           merchants={merchants}

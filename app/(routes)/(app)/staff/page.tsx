@@ -6,6 +6,7 @@ import { getStoredUser } from '@/lib/auth'
 import { getUsers, ApiUser } from '@/lib/users'
 import { getBranches } from '@/lib/branches'
 import StaffTable from '@/components/staff/StaffTable'
+import ErrorCard from '@/components/ui/ErrorCard'
 import StaffDetailPanel from '@/components/staff/StaffDetailPanel'
 import PageHeader from '@/components/ui/PageHeader'
 import FilterBar from '@/components/ui/FilterBar'
@@ -53,6 +54,7 @@ export default function StaffPage() {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -70,6 +72,7 @@ export default function StaffPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
+    setError("")
     try {
       const branchId = allBranchesRef.current.find(b => b.name === filters.branch)?.id
 
@@ -87,6 +90,8 @@ export default function StaffPage() {
       }
     } catch (err) {
       console.error("Failed to fetch users:", err)
+      setError(err instanceof Error ? err.message : "Failed to load users")
+      setStaff([])
     } finally {
       setLoading(false)
     }
@@ -145,6 +150,8 @@ export default function StaffPage() {
 
       {loading ? (
         <StaffTableSkeleton />
+      ) : error ? (
+        <ErrorCard message={error} onRetry={fetchUsers} />
       ) : (
         <StaffTable
           staff={staff}
