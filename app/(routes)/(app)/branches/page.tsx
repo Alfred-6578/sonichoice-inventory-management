@@ -7,7 +7,8 @@ import BranchFormPanel from '@/components/branches/BranchFormPanel'
 import Overlay from '@/components/ui/Overlay'
 import { BranchDetails } from '@/types/branch';
 import { getBranches, ApiBranch } from '@/lib/branches';
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 function mapApiBranch(b: ApiBranch): BranchDetails {
   const totalHolding = b.productStocks
@@ -79,10 +80,25 @@ function mapApiBranch(b: ApiBranch): BranchDetails {
 }
 
 const BranchesPage = () => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const hasAppliedParams = useRef(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [branches, setBranches] = useState<BranchDetails[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Handle branchId query param (from dashboard click)
+  useEffect(() => {
+    if (hasAppliedParams.current || loading || branches.length === 0) return;
+    const branchId = searchParams.get("branchId");
+    if (branchId) {
+      hasAppliedParams.current = true;
+      const match = branches.find(b => b.id === branchId);
+      if (match) setSelectedId(match.id);
+      router.replace("/branches", { scroll: false });
+    }
+  }, [loading, branches, searchParams]);
 
   const fetchBranches = useCallback(async () => {
     setLoading(true)
@@ -122,7 +138,7 @@ const BranchesPage = () => {
       variant: "amber" as const,
     },
     {
-      label: "Delivered",
+      label: "Received",
       value: branches.reduce((s, b) => s + b.delivered, 0),
       sub: "across all branches",
       variant: "green" as const,
@@ -200,4 +216,10 @@ function BranchGridSkeleton() {
   )
 }
 
-export default BranchesPage
+export default function BranchesPageWrapper() {
+  return (
+    <Suspense>
+      <BranchesPage />
+    </Suspense>
+  )
+}

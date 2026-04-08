@@ -10,9 +10,11 @@ import PageHeader from "@/components/ui/PageHeader"
 import { Download, Plus } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Overlay from "@/components/ui/Overlay"
-import { getProducts, getProduct, ApiProduct, exportProducts } from "@/lib/products"
+import { getProducts, getProduct, ApiProduct } from "@/lib/products"
 import { getBranches } from "@/lib/branches"
 import { useDebounce } from "@/hooks/useDebounce"
+import ExportPreviewModal from "@/components/ui/ExportPreviewModal"
+import { ExportConfig } from "@/lib/export"
 
 type InventoryFilters = {
   search: string
@@ -118,33 +120,7 @@ const InventoryPage = () => {
     }
   }
   const [formOpen, setFormOpen] = useState(false)
-  const [showExportMenu, setShowExportMenu] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const exportRef = useRef<HTMLDivElement>(null)
-
-  // Close export menu on outside click
-  useEffect(() => {
-    if (!showExportMenu) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
-        setShowExportMenu(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [showExportMenu])
-
-  const handleExport = async (format: "pdf" | "excel") => {
-    setShowExportMenu(false)
-    setExporting(true)
-    try {
-      await exportProducts(format)
-    } catch (err) {
-      console.error("Export failed:", err)
-    } finally {
-      setExporting(false)
-    }
-  }
+  const [showExportPreview, setShowExportPreview] = useState(false)
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -238,6 +214,26 @@ const InventoryPage = () => {
     })
   }, [items, filters])
 
+  const exportConfig: ExportConfig = {
+    title: "Inventory Report",
+    subtitle: `${filteredItems.length} products · Page ${page} of ${totalPages}`,
+    filename: "sonichoice-inventory",
+    columns: [
+      { header: "SKU", key: "sku", width: 14 },
+      { header: "Product Name", key: "name", width: 28 },
+      { header: "Merchant", key: "merchant", width: 22 },
+      { header: "Total Stock", key: "totalQty", width: 12 },
+      { header: "Date In", key: "dateIn", width: 14 },
+    ],
+    rows: filteredItems.map((item) => ({
+      sku: item.sku,
+      name: item.name,
+      merchant: item.merchant.name,
+      totalQty: item.totalQty,
+      dateIn: item.dateIn,
+    })),
+  }
+
   // Reset to page 1 when search changes
   const handleFilterChange = (f: InventoryFilters) => {
     if (f.search !== filters.search) setPage(1)
@@ -254,32 +250,11 @@ const InventoryPage = () => {
             loading={loading}
             button1="Export"
             button1Icon={<Download/>}
-            onButton1={() => setShowExportMenu(!showExportMenu)}
+            onButton1={() => setShowExportPreview(true)}
             button2="Add Product"
             button2Icon={<Plus/>}
             onButton2={()=> setFormOpen(true)}
         />
-
-        {/* Export dropdown */}
-        <div ref={exportRef} className="relative w-full right-0  inline-block self-start -mt-2 ">
-        
-          {showExportMenu && (
-            <div className="absolute max-md:left-0 -top-15 xsm:-top-3 md:-top-8 md:right-4 mt-1 bg-white border border-border rounded-lg shadow-lg z-20 ">
-              <button
-                onClick={() => handleExport("pdf")}
-                className="text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition first:rounded-t-lg"
-              >
-                Export as PDF
-              </button>
-              <button
-                onClick={() => handleExport("excel")}
-                className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition border-t border-border last:rounded-b-lg"
-              >
-                Export as Excel
-              </button>
-            </div>
-          )}
-        </div>
         <FilterBar
           filters={filters}
           setFilters={setFilters}
@@ -352,6 +327,11 @@ const InventoryPage = () => {
         zIndex={59}
         />
 
+      <ExportPreviewModal
+        isOpen={showExportPreview}
+        onClose={() => setShowExportPreview(false)}
+        config={exportConfig}
+      />
     </div>
   )
 }

@@ -36,9 +36,9 @@ const steps = [
   },
   {
     icon: Check,
-    title: "Delivered",
+    title: "Received",
     description:
-      "Handed to the recipient. Marked delivered. Full history recorded.",
+      "Arrived at the destination branch. Marked received. Full history recorded.",
   },
 ];
 
@@ -56,7 +56,7 @@ const Workflow = () => {
 
         {/* Title */}
         <h2 className={`text-[27px] vsm:text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-20 ${syne.className}`}>
-          From drop-off to delivered
+          From drop-off to received
         </h2>
 
         {/* Workflow Steps */}

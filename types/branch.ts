@@ -10,7 +10,7 @@ export interface Branch {
 
 export type StatVariant = "default" | "amber" | "green";
 
-export type ParcelStatus = "transit" | "delivered" | "pending";
+export type ParcelStatus = "transit" | "received" | "pending";
 
 
 export interface StatItem {

@@ -16,7 +16,7 @@ export const activityStyles: Record<
       </svg>
     ),
   },
-  delivered: {
+  received: {
     bg: "bg-[#f0fdf4]",
     color: "text-[#16a34a]",
     icon: (

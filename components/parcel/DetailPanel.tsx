@@ -412,7 +412,8 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
         {/* DETAILS */}
         <Section title="Parcel Details">
           <Row label="Size" value={`${parcel.size}${parcel.weight ? ` · ${parcel.weight}` : ""}`} />
-          <Row label="Date received" value={parcel.date} mono />
+          <Row label="Date sent" value={parcel.dateSent || "—"} mono />
+          {parcel.dateReceived && <Row label="Date received" value={parcel.dateReceived} mono />}
           <Row label="Current location" value={parcel.current} />
 
           {parcel.notes && (

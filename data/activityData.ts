@@ -12,8 +12,8 @@ export const activities: Activity[] = [
   },
   {
     id: "2",
-    type: "delivered",
-    title: "PCL-005 delivered",
+    type: "received",
+    title: "PCL-005 received",
     meta: "Kemi Adeyemi · Port Harcourt",
     time: "1h",
   },

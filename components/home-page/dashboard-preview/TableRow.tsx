@@ -6,7 +6,7 @@ type TableRowProps = {
   name: string;
   initials: string;
   color: string;
-  status: "transit" | "delivered" | "pending" | string;
+  status: "transit" | "received" | "pending" | string;
 };
 
 

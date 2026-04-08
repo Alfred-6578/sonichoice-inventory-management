@@ -52,7 +52,7 @@ const Features = () => {
     },
     {
       title: "Live dashboard",
-      desc: "At-a-glance metrics for in-transit, delivered, pending, and revenue. Branch-by-branch breakdown and activity.",
+      desc: "At-a-glance metrics for in-transit, received, pending, and revenue. Branch-by-branch breakdown and activity.",
       tag: "ANALYTICS",
       Icon: MdDashboard
     },

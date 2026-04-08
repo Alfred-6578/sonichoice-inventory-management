@@ -22,7 +22,7 @@ export default function SidebarShell() {
 
       {/* MAIN AREA */}
       <div className="flex flex-col lg:ml-[250px]">
-        <Topbar setIsOpen={setIsOpen} />
+        {/* <Topbar setIsOpen={setIsOpen} /> */}
       </div>
     </>
   );

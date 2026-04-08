@@ -43,11 +43,11 @@ export default function BranchCard({ branch, selectedId, onSelect }: Props) {
           dot: "bg-amber",
           label: "In Transit",
         };
-      case "delivered":
+      case "received":
         return {
           wrapper: "bg-delivered-bg text-[#14532d] border-delivered-border",
           dot: "bg-delivered",
-          label: "Delivered",
+          label: "Received",
         };
       default:
         return {
@@ -128,7 +128,7 @@ export default function BranchCard({ branch, selectedId, onSelect }: Props) {
             {branch.delivered}
           </div>
           <div className="text-[9px] font-m text-ink-subtle uppercase mt-[3px]">
-            Delivered
+            Received
           </div>
         </div>
       </div>
