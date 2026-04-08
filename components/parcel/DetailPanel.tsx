@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { updateParcelStatus, deleteParcel, updateParcel, ParcelStatusValue } from "@/lib/parcels";
 import { getBranches } from "@/lib/branches";
 import { getStoredUser } from "@/lib/auth";
+import { getActivityLogs, ActivityLogEntry } from "@/lib/activityLogs";
 import { Trash2, Pencil, X } from "lucide-react";
 import Select from "../ui/Select";
 
@@ -33,6 +34,8 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
   const [branchProducts, setBranchProducts] = useState<{ id: string; name: string; trackingId: string; maxQuantity: number; merchantName: string; merchantColor: string }[]>([]);
   const [loadingBranchProducts, setLoadingBranchProducts] = useState(false);
   const [itemSearch, setItemSearch] = useState("");
+  const [history, setHistory] = useState<ActivityLogEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Reset edit state when switching parcels
   useEffect(() => {
@@ -40,6 +43,24 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
     setShowItemsModal(false);
     setConfirmDelete(false);
     setStatusError("");
+    setHistory([]);
+  }, [parcel?.apiId]);
+
+  // Fetch movement history (activity logs for this parcel)
+  useEffect(() => {
+    if (!parcel?.apiId) return;
+    setHistoryLoading(true);
+    getActivityLogs({ resourceType: "parcel", resourceId: parcel.apiId })
+      .then((res) => {
+        console.log("[Parcel history] response:", res);
+        console.log("[Parcel history] data length:", res.data?.length, "meta:", res.meta);
+        setHistory(res.data || []);
+      })
+      .catch((err) => {
+        console.error("[Parcel history] error:", err);
+        setHistory([]);
+      })
+      .finally(() => setHistoryLoading(false));
   }, [parcel?.apiId]);
 
   const isOpen = !!parcel;
@@ -424,38 +445,59 @@ export default function DetailPanel({ parcel, onClose, onUpdated }: DetailPanelP
 
         {/* TIMELINE */}
         <Section title="Movement History">
-          <div className="space-y-4">
-            {parcel.history?.map((h, i) => {
-              const previousDone = i > 0 ? parcel.history?.[i - 1]?.done : false;
-              const isActive = !h.done && (i === 0 || previousDone);
-
-              const dotClass = h.done
-                ? "bg-delivered"
-                : isActive
-                ? "bg-amber"
-                : "bg-border-strong";
-
-              return (
+          {historyLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
                 <div key={i} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`w-2.5 h-2.5 rounded-full border ${dotClass}`}
-                    />
-                    {i !== (parcel.history?.length ?? 0) - 1 && (
-                      <div className="w-[1px] flex-1 bg-border mt-1" />
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="text-sm text-ink">{h.action}</div>
-                    <div className="text-xs text-ink-subtle font-mono">
-                      {h.branch} · {h.date}
-                    </div>
+                  <div className="w-2.5 h-2.5 bg-gray-200 rounded-full animate-pulse mt-1" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-3.5 w-3/4 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-3 w-1/2 bg-gray-100 rounded animate-pulse" />
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : history.length === 0 ? (
+            <div className="text-xs text-ink-subtle">No movement history yet</div>
+          ) : (
+            <div className="space-y-4">
+              {history.map((log, i) => {
+                const isLatest = i === 0;
+                const dotClass = isLatest ? "bg-amber" : "bg-delivered";
+                const date = new Date(log.createdAt);
+                const dateStr = date.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                });
+                const timeStr = date.toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+
+                return (
+                  <div key={log.id || i} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-2.5 h-2.5 rounded-full border ${dotClass}`} />
+                      {i !== history.length - 1 && (
+                        <div className="w-[1px] flex-1 bg-border mt-1" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0 pb-1">
+                      <div className="text-sm text-ink leading-snug">{log.action}</div>
+                      <div className="text-[11px] text-ink-subtle font-mono mt-0.5">
+                        {[log.userName, log.branchName].filter(Boolean).join(" · ")}
+                      </div>
+                      <div className="text-[10px] text-ink-subtle font-mono">
+                        {dateStr} · {timeStr}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </Section>
       </div>
 

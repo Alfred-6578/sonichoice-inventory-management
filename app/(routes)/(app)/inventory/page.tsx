@@ -15,6 +15,7 @@ import { getBranches } from "@/lib/branches"
 import { useDebounce } from "@/hooks/useDebounce"
 import ExportPreviewModal from "@/components/ui/ExportPreviewModal"
 import { ExportConfig } from "@/lib/export"
+import ErrorCard from "@/components/ui/ErrorCard"
 
 type InventoryFilters = {
   search: string
@@ -265,14 +266,10 @@ const InventoryPage = () => {
           disabled={loading}
         />
 
-        {error && (
-          <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-
         {loading ? (
           <InventoryTableSkeleton />
+        ) : error ? (
+          <ErrorCard message={error} onRetry={fetchProducts} />
         ) : (
           <InventoryTable
             items={filteredItems}

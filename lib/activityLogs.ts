@@ -1,5 +1,7 @@
 import { api } from "./api";
 
+export type ResourceType = "branch" | "merchant" | "product" | "parcel" | "user";
+
 export type ActivityLogEntry = {
   id: string;
   action: string;
@@ -8,6 +10,8 @@ export type ActivityLogEntry = {
   userName?: string;
   userEmail?: string;
   branchName?: string;
+  resourceId?: string;
+  resourceType?: ResourceType;
   metadata?: Record<string, unknown>;
   createdAt: string;
   [key: string]: unknown;
@@ -43,6 +47,8 @@ export type GetActivityLogsFilters = {
   actionKeyword?: string;
   userId?: string;
   branchId?: string;
+  resourceId?: string;
+  resourceType?: ResourceType;
 };
 
 function buildQuery(filters: Record<string, string | number | undefined>) {
@@ -61,7 +67,13 @@ export async function getActivityLogs(
 }
 
 export async function getMyActivityLogs(
-  filters: { page?: number; search?: string; actionKeyword?: string } = {}
+  filters: {
+    page?: number;
+    search?: string;
+    actionKeyword?: string;
+    resourceId?: string;
+    resourceType?: ResourceType;
+  } = {}
 ): Promise<ActivityLogsResponse> {
   return api<ActivityLogsResponse>(`/activity-logs/me${buildQuery(filters)}`);
 }

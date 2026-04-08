@@ -45,7 +45,7 @@ async function refreshAccessToken(): Promise<string | null> {
     const newToken = data.accessToken;
     if (newToken) {
       localStorage.setItem("token", newToken);
-      document.cookie = `token=${newToken}; path=/; max-age=${60 * 60}; SameSite=Lax`;
+      document.cookie = `token=${newToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       // Update refresh token if a new one is returned
       if (data.refreshToken) {
         localStorage.setItem("refreshToken", data.refreshToken);
@@ -155,6 +155,11 @@ export async function api<T = unknown>(
 
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error("Request timed out. Please check your connection.");
+    }
+
+    // Browser network failure (offline, DNS, CORS, etc.)
+    if (err instanceof TypeError && err.message === "Failed to fetch") {
+      throw new Error("Network error. Please check your connection.");
     }
 
     throw err;

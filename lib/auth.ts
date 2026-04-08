@@ -28,7 +28,7 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
 
   if (data.accessToken) {
     localStorage.setItem("token", data.accessToken);
-    document.cookie = `token=${data.accessToken}; path=/; max-age=${60 * 60}; SameSite=Lax`;
+    document.cookie = `token=${data.accessToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
   }
   if (data.refreshToken) {
     localStorage.setItem("refreshToken", data.refreshToken);

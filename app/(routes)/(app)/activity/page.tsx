@@ -9,6 +9,7 @@ import { getBranches } from '@/lib/branches'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Syne } from 'next/font/google'
 import { Clock, Package, Box, Layers, Store, MapPin, User, LogIn, LogOut, MoreHorizontal } from 'lucide-react'
+import ErrorCard from '@/components/ui/ErrorCard'
 
 const syne = Syne({ variable: '--font-syne', subsets: ['latin'] })
 
@@ -103,7 +104,7 @@ export default function ActivityLogsPage() {
     scope: 'all',
   })
 
-  const debouncedSearch = useDebounce(filters.search)
+  const debouncedSearch = useDebounce(filters.search, 1500)
 
   useEffect(() => {
     const user = getStoredUser()
@@ -118,7 +119,7 @@ export default function ActivityLogsPage() {
       const sharedFilters = {
         page,
         search: debouncedSearch || undefined,
-        actionKeyword: activeKeyword !== 'all' ? activeKeyword : undefined,
+        actionKeyword: activeKeyword !== 'all' ? activeKeyword.toUpperCase() : undefined,
       }
 
       const res = filters.scope === 'me'
@@ -245,16 +246,12 @@ export default function ActivityLogsPage() {
         disabled={loading}
       />
 
-      {error && !loading && (
-        <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
       {/* Logs list */}
       {loading ? (
         <ActivityLogsSkeleton />
-      ) : error ? null : logs.length === 0 ? (
+      ) : error ? (
+        <ErrorCard message={error} onRetry={fetchLogs} />
+      ) : logs.length === 0 ? (
         <div className="text-center py-14 bg-white border border-border rounded-xl">
           <div className="w-11 h-11 mx-auto mb-3 rounded-lg bg-surface border border-border flex items-center justify-center">
             <Clock className="w-5 h-5 text-ink-subtle" />
