@@ -7,6 +7,7 @@ import { DM_Mono, Syne } from "next/font/google"
 import { useState, useEffect } from "react"
 import { updateProduct, deleteProduct, BranchEntry } from "@/lib/products"
 import { getBranches, ApiBranch } from "@/lib/branches"
+import { getActivityLogs, ActivityLogEntry } from "@/lib/activityLogs"
 
 const syne = Syne({
     variable: "--font-syne",
@@ -37,6 +38,21 @@ export default function InventoryDetailPanel({
   const [error, setError] = useState("")
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [history, setHistory] = useState<ActivityLogEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  // Fetch movement history (activity logs for this product)
+  useEffect(() => {
+    if (!item?.id) {
+      setHistory([])
+      return
+    }
+    setHistoryLoading(true)
+    getActivityLogs({ resourceType: "product", resourceId: item.id })
+      .then((res) => setHistory(res.data || []))
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false))
+  }, [item?.id])
 
   if (!item) return null
 
@@ -399,7 +415,56 @@ export default function InventoryDetailPanel({
 
         <div className="px-4.5 py-4">
           <div className="font-mono text-xs text-gray-400 uppercase letter-spacing-wider mb-2.5">Movement History</div>
-          <div>{actRows}</div>
+          {historyLoading ? (
+            <div className="space-y-2.5">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-start gap-2.5 py-2.5 border-b border-gray-200 last:border-b-0">
+                  <div className="w-6.5 h-6.5 bg-gray-200 rounded animate-pulse flex-shrink-0" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-3.5 w-3/4 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-3 w-1/2 bg-gray-100 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : history.length === 0 ? (
+            <div className="text-xs text-gray-400">No movement history yet</div>
+          ) : (
+            <div>
+              {history.map((log) => {
+                const action = log.action.toLowerCase()
+                const isCreate = action.includes("create") || action.includes("add")
+                const isDelete = action.includes("delete") || action.includes("remove")
+                const iconBg = isCreate
+                  ? "bg-green-50 text-green-600"
+                  : isDelete
+                  ? "bg-red-50 text-red-600"
+                  : "bg-blue-50 text-blue-600"
+                const date = new Date(log.createdAt)
+                const dateStr = date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                const timeStr = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+
+                return (
+                  <div key={log.id} className="flex items-start gap-2.5 py-2.5 border-b border-gray-200 last:border-b-0">
+                    <div className={`w-6.5 h-6.5 rounded flex-shrink-0 flex items-center justify-center ${iconBg}`}>
+                      <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-gray-900 leading-relaxed">{log.action}</div>
+                      <div className="text-xs text-gray-500 mt-0.5 font-mono">
+                        {[log.userName, log.branchName].filter(Boolean).join(" · ")}
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-0.5 font-mono">
+                        {dateStr} · {timeStr}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
       </div>
