@@ -5,7 +5,7 @@ import { totalStock } from "@/lib/inventory-utils"
 import AvatarName from "../ui/AvatarName"
 import Tag from "../ui/Tag"
 
-type SortKey = "name" | "totalQty" | "dateIn"
+type SortKey = "name" | "totalQty" | "dateIn" | "updatedAt"
 
 function SortArrow({ active, asc }: { active: boolean; asc: boolean }) {
   if (!active) return null
@@ -36,7 +36,7 @@ export default function InventoryTable({
       let A: any = a[sortKey]
       let B: any = b[sortKey]
 
-      if (sortKey === "dateIn") {
+      if (sortKey === "dateIn" || sortKey === "updatedAt") {
         A = A ? new Date(A).getTime() : 0
         B = B ? new Date(B).getTime() : 0
       }
@@ -60,7 +60,7 @@ export default function InventoryTable({
         <Table>
           <Table.Head>
             <Table.Row className="bg-white">
-              <Table.Cell head>SKU</Table.Cell>
+              <Table.Cell head>Tracking ID</Table.Cell>
               <Table.Cell
                 head
                 className={`cursor-pointer ${sortKey === "name" ? "font-bold text-ink-muted" : ""}`}
@@ -86,6 +86,14 @@ export default function InventoryTable({
               >
                 Date In
                 <SortArrow active={sortKey === "dateIn"} asc={asc} />
+              </Table.Cell>
+              <Table.Cell
+                head
+                className={`cursor-pointer ${sortKey === "updatedAt" ? "font-bold text-ink-muted" : ""}`}
+                onClick={() => handleSort("updatedAt")}
+              >
+                Updated
+                <SortArrow active={sortKey === "updatedAt"} asc={asc} />
               </Table.Cell>
             </Table.Row>
           </Table.Head>
@@ -115,6 +123,7 @@ export default function InventoryTable({
                 </Table.Cell>
                 <Table.Cell>{totalStock(item)}</Table.Cell>
                 <Table.Cell>{item.dateIn}</Table.Cell>
+                <Table.Cell className="text-ink-subtle text-[11px] font-mono">{item.updatedAt}</Table.Cell>
               </>
             )}
           </Table.Body>

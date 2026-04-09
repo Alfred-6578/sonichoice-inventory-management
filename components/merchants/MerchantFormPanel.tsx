@@ -47,8 +47,8 @@ export default function MerchantFormPanel({ isOpen, onClose, onSubmit }: Merchan
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.name || !formData.phone) {
-      setError('Name and phone are required.')
+    if (!formData.name) {
+      setError('Name is required.')
       return
     }
 
@@ -60,7 +60,7 @@ export default function MerchantFormPanel({ isOpen, onClose, onSubmit }: Merchan
       const result = await createMerchant({
         name: formData.name,
         ...(formData.email ? { email: formData.email } : {}),
-        phone: formData.phone,
+        ...(formData.phone ? { phone: formData.phone } : {}),
         color: formData.color,
         status: "ACTIVE"
       })
@@ -125,11 +125,10 @@ export default function MerchantFormPanel({ isOpen, onClose, onSubmit }: Merchan
 
         <Input
           id="phone-number"
-          label="Phone Number"
+          label="Phone Number (optional)"
           value={formData.phone}
           onChange={(e) => handleInputChange('phone', e.target.value)}
           placeholder="+234 xxx xxx xxxx"
-          required
         />
 
         <Input

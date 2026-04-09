@@ -21,8 +21,8 @@ export default function SidebarShell() {
       <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
 
       {/* MAIN AREA */}
-      <div className="flex flex-col lg:ml-[250px]">
-        {/* <Topbar setIsOpen={setIsOpen} /> */}
+      <div className="flex flex-col lg:opacity-0 lg:ml-[250px]">
+        <Topbar setIsOpen={setIsOpen} />
       </div>
     </>
   );

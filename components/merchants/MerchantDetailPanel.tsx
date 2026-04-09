@@ -60,8 +60,8 @@ export default function MerchantDetailPanel({ merchant, onClose, onUpdated }: Me
     try {
       await updateMerchant(merchant.id, {
         name: editName,
-        email: editEmail,
-        phone: editPhone,
+        ...(editEmail ? { email: editEmail } : {}),
+        ...(editPhone ? { phone: editPhone } : {}),
         color: editColor,
         status: editStatus,
       })
@@ -138,8 +138,8 @@ export default function MerchantDetailPanel({ merchant, onClose, onUpdated }: Me
               <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">{error}</div>
             )}
             <Input id="edit-name" label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} size="sm" />
-            <Input id="edit-email" label="Email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} size="sm" />
-            <Input id="edit-phone" label="Phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} size="sm" />
+            <Input id="edit-email" label="Email (optional)" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} size="sm" />
+            <Input id="edit-phone" label="Phone (optional)" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} size="sm" />
 
             <div>
               <label className="block text-xs font-medium text-ink-muted mb-1.5">Color</label>

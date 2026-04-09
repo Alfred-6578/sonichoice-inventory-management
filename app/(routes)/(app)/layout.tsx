@@ -9,7 +9,7 @@ export default function AppLayout({
   return (
    <div className="flex bg-surface min-h-screen">
         <SidebarShell />
-        <main className=" w-full !pt-8 px-4 py-14 tny:px-6">
+        <main className=" w-full max-lg:!pt-25 px-4 py-14 tny:px-6">
             {children}
         </main>
    </div>

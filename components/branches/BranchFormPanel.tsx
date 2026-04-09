@@ -184,21 +184,19 @@ export default function BranchFormPanel({ isOpen, onClose, onSubmit }: BranchFor
         <div className="grid grid-cols-2 gap-3">
           <Input
             id="phone"
-            label="Phone"
+            label="Phone (optional)"
             value={formData.phone}
             onChange={(e) => handleInputChange('phone', e.target.value)}
             placeholder="+234 xxx xxx xxxx"
-            required
           />
 
           <Input
             id="email"
-            label="Email"
+            label="Email (optional)"
             type="email"
             value={formData.email}
             onChange={(e) => handleInputChange('email', e.target.value)}
             placeholder="branch@sonichoice.ng"
-            required
           />
         </div>
 

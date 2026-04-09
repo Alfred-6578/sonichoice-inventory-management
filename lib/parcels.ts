@@ -57,10 +57,20 @@ export type ApiParcel = {
   updatedAt?: string;
 };
 
+export type ParcelStatusCounts = {
+  all: number;
+  in_transit: number;
+  pending: number;
+  received: number;
+  cancelled: number;
+  returned: number;
+};
+
 type ParcelsResponse = {
   message: string;
   data: ApiParcel[];
   meta?: { total: number; page: number; lastPage: number };
+  statusCounts?: ParcelStatusCounts;
 };
 
 // ── Get All ──

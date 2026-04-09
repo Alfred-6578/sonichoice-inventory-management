@@ -166,8 +166,8 @@ export default function DetailPanel({ branch, onClose, onUpdated }: Props) {
               <Input id="edit-state" label="State" value={editState} onChange={(e) => setEditState(e.target.value)} size="sm" />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Input id="edit-phone" label="Phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} size="sm" />
-              <Input id="edit-email" label="Email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} size="sm" />
+              <Input id="edit-phone" label="Phone (optional)" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} size="sm" />
+              <Input id="edit-email" label="Email (optional)" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} size="sm" />
             </div>
             <div className="flex gap-2 pt-1">
               <button

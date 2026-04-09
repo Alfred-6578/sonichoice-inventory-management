@@ -29,6 +29,7 @@ export type InventoryItem = {
   totalQty: number
   lowAlert: number
   dateIn: string
+  updatedAt: string
   notes: string
   history: HistoryEntry[]
 }

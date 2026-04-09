@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { Syne } from 'next/font/google'
 import { createProduct } from '@/lib/products'
@@ -26,6 +26,9 @@ const syne = Syne({
 export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProductFormProps) {
   const [productName, setProductName] = useState('')
   const [merchantId, setMerchantId] = useState('')
+  const [merchantSearch, setMerchantSearch] = useState('')
+  const [showMerchantDropdown, setShowMerchantDropdown] = useState(false)
+  const merchantRef = useRef<HTMLDivElement>(null)
   const [description, setDescription] = useState('')
   const [additionalInfo, setAdditionalInfo] = useState('')
   const [dateReceived, setDateReceived] = useState('')
@@ -58,9 +61,29 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
     }
   }, [isOpen])
 
+  // Close merchant dropdown on outside click
+  useEffect(() => {
+    if (!showMerchantDropdown) return
+    const handleClick = (e: MouseEvent) => {
+      if (merchantRef.current && !merchantRef.current.contains(e.target as Node)) {
+        setShowMerchantDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [showMerchantDropdown])
+
+  const filteredMerchants = merchants.filter(m =>
+    m.name.toLowerCase().includes(merchantSearch.toLowerCase())
+  )
+
+  const selectedMerchantName = merchants.find(m => m.id === merchantId)?.name || ''
+
   const resetForm = () => {
     setProductName('')
     setMerchantId('')
+    setMerchantSearch('')
+    setShowMerchantDropdown(false)
     setDescription('')
     setAdditionalInfo('')
     setDateReceived('')
@@ -107,14 +130,17 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
     setLoading(true)
 
     try {
-      const result = await createProduct({
+      const payload = {
         name: productName,
         merchantId,
         description: description || undefined,
         dateReceived: dateReceived ? new Date(dateReceived).toISOString() : undefined,
         additionalInfo: additionalInfo || undefined,
         branches: validBranches,
-      })
+      }
+      console.log("[Create Product] payload:", payload)
+      const result = await createProduct(payload)
+      console.log("[Create Product] response:", result)
 
       setSuccess(`"${productName}" has been added successfully!`)
       resetForm()
@@ -178,24 +204,61 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
           )}
 
           {/* Merchant */}
-          <div className="mb-4">
+          <div className="mb-4" ref={merchantRef}>
             <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
               Merchant
             </label>
-            <select
-              value={merchantId}
-              onChange={(e) => setMerchantId(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white font-sans text-sm text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5"
-            >
-              <option value="">
-                {loadingData ? 'Loading...' : '— Select merchant —'}
-              </option>
-              {merchants.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                type="text"
+                value={merchantId ? selectedMerchantName : merchantSearch}
+                onChange={(e) => {
+                  setMerchantSearch(e.target.value)
+                  setMerchantId('')
+                  setShowMerchantDropdown(true)
+                }}
+                onFocus={() => setShowMerchantDropdown(true)}
+                placeholder={loadingData ? 'Loading...' : 'Search merchant...'}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white font-sans text-sm text-gray-900 outline-none transition-all focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5"
+              />
+              {merchantId && (
+                <button
+                  type="button"
+                  onClick={() => { setMerchantId(''); setMerchantSearch(''); }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={14} />
+                </button>
+              )}
+              {showMerchantDropdown && !merchantId && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                  {filteredMerchants.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-gray-400">No merchants found</div>
+                  ) : (
+                    filteredMerchants.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setMerchantId(m.id)
+                          setMerchantSearch('')
+                          setShowMerchantDropdown(false)
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <div
+                          className="w-5 h-5 rounded text-[9px] font-semibold flex items-center justify-center text-white shrink-0"
+                          style={{ backgroundColor: m.color || '#374151' }}
+                        >
+                          {m.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        {m.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Product Name */}

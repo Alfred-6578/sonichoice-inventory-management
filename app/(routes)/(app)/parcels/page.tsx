@@ -8,9 +8,9 @@ import PageHeader from '@/components/ui/PageHeader'
 import StatusPillsContainer from '@/components/ui/StatusPillsContainer'
 import { Filters, Parcel } from '@/types/parcelTypes'
 import { Download, Plus } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { getParcels, getParcel, ApiParcel } from '@/lib/parcels'
+import { getParcels, getParcel, ApiParcel, ParcelStatusCounts } from '@/lib/parcels'
 import ExportPreviewModal from '@/components/ui/ExportPreviewModal'
 import { ExportConfig } from '@/lib/export'
 import ErrorCard from '@/components/ui/ErrorCard'
@@ -103,6 +103,7 @@ const ParcelPage = () => {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [statusCounts, setStatusCounts] = useState<ParcelStatusCounts>({ all: 0, in_transit: 0, pending: 0, received: 0, cancelled: 0, returned: 0 })
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([])
   const [allMerchants, setAllMerchants] = useState<{ id: string; name: string }[]>([])
   const allBranchesRef = useRef(allBranches)
@@ -140,6 +141,9 @@ const ParcelPage = () => {
         setTotalCount(res.meta.total)
         setTotalPages(res.meta.lastPage)
       }
+      if (res.statusCounts) {
+        setStatusCounts(res.statusCounts)
+      }
     } catch (err) {
       console.error("Failed to fetch parcels:", err)
       setError(err instanceof Error ? err.message : "Failed to load parcels")
@@ -155,14 +159,14 @@ const ParcelPage = () => {
 
   const filteredData = parcels
 
-  const counts = useMemo(() => ({
-    all: totalCount,
-    transit: parcels.filter(p => p.status === "transit").length,
-    pending: parcels.filter(p => p.status === "pending").length,
-    received: parcels.filter(p => p.status === "received").length,
-    cancelled: parcels.filter(p => p.status === "cancelled").length,
-    returned: parcels.filter(p => p.status === "returned").length,
-  }), [parcels, totalCount])
+  const counts = {
+    all: statusCounts.all,
+    transit: statusCounts.in_transit,
+    pending: statusCounts.pending,
+    received: statusCounts.received,
+    cancelled: statusCounts.cancelled,
+    returned: statusCounts.returned,
+  }
 
   const clearFilters = () => {
     setFilters({ status: "all", search: "", branch: "", merchant: "" })
