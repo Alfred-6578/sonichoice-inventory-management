@@ -72,9 +72,10 @@ function mapApiProduct(p: ApiProduct): InventoryItem {
     lowAlert: 10,
     dateIn: p.dateReceived
       ? new Date(p.dateReceived).toISOString().split("T")[0]
-      : p.createdAt
-        ? new Date(p.createdAt).toISOString().split("T")[0]
-        : "",
+      : "",
+    updatedAt: p.updatedAt
+      ? new Date(p.updatedAt).toISOString().split("T")[0]
+      : "",
     notes: p.additionalInfo ?? "",
     history: [],
   }
@@ -146,6 +147,7 @@ const InventoryPage = () => {
       })
 
       const raw = res.products || res.data || (Array.isArray(res) ? res : [])
+      console.log("[Fetch Products] raw sample:", (raw as ApiProduct[]).slice(0, 2).map(p => p))
       const mapped = (raw as ApiProduct[]).map(mapApiProduct)
 
       setItems(mapped)

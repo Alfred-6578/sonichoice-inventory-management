@@ -20,6 +20,7 @@ export default function Sidebar(
 ) {
   const [user, setUser] = useState<{ name: string; role: string } | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const isAdmin = user?.role === "ADMIN" || user?.role === "admin";
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function Sidebar(
   ];
 
   return (
+    <>
     <aside className={`fixed z-40 w-[250px] h-screen bg-[#ffffff] border-r border-[#e4e7ec] flex flex-col
            ${isOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
@@ -171,7 +173,7 @@ export default function Sidebar(
           </div>
 
           <button
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             disabled={loggingOut}
             className="w-7 h-7 rounded-md flex items-center justify-center text-[#9ca3af] hover:bg-red-50 hover:text-red-500 transition shrink-0"
             title="Logout"
@@ -180,6 +182,41 @@ export default function Sidebar(
           </button>
         </div>
       </div>
+
     </aside>
+
+    {/* LOGOUT CONFIRMATION — full screen overlay */}
+    {showLogoutConfirm && (
+      <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-[100] flex items-center justify-center p-5" onClick={() => setShowLogoutConfirm(false)}>
+        <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-5 max-w-72 w-full text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-red-50 flex items-center justify-center">
+            <LogOut className="w-5 h-5 text-red-500" />
+          </div>
+          <div className="text-sm font-bold text-gray-900 mb-1">Sign out?</div>
+          <div className="text-xs text-gray-500 mb-4">
+            You&apos;ll need to sign in again to access your account.
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className={`flex-1 px-3 py-2 text-xs rounded-lg text-white font-bold ${
+                loggingOut ? "bg-red-300" : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              {loggingOut ? "Signing out..." : "Sign out"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
+ 

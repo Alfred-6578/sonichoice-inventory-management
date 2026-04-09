@@ -67,8 +67,8 @@ export type CreateBranchPayload = {
   state: string;
   zip?: string;
   country?: string;
-  phone: string;
-  email: string;
+  phone?: string;
+  email?: string;
 };
 
 // ── Update ──

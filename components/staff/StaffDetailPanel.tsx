@@ -146,7 +146,7 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated }: StaffDet
 
           <Input
             id="edit-phone"
-            label="Phone"
+            label="Phone (optional)"
             value={editPhone}
             onChange={(e) => setEditPhone(e.target.value)}
             placeholder="+234..."
