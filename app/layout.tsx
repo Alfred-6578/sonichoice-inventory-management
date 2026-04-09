@@ -8,7 +8,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "parcel delivery inventory management system",
+  title: "Sonichoice Logistics",
   description: "A parcel delivery inventory management system built with Next.js and TypeScript.",
 };
 
