@@ -61,8 +61,10 @@ export default function DetailPanel({ branch, onClose, onUpdated }: Props) {
         address: editAddress,
         city: editCity,
         state: editState,
-        phone: editPhone,
-        email: editEmail,
+        // Only send optional contact fields when filled — the backend rejects
+        // an empty string ("Email must be a valid email address").
+        ...(editPhone.trim() ? { phone: editPhone.trim() } : {}),
+        ...(editEmail.trim() ? { email: editEmail.trim() } : {}),
       });
       setEditing(false);
       onUpdated?.();

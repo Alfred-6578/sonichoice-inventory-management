@@ -79,7 +79,7 @@ export default function InventoryDetailPanel({
     const entries = Object.entries(item.stock).map(([name, qty]) => ({
       branchId: name, // will be resolved to id below
       quantity: qty ?? 0,
-      lowStockAlert: 10,
+      lowStockAlert: 0,
     }))
     setEditBranches(entries)
     setError("")
@@ -104,7 +104,7 @@ export default function InventoryDetailPanel({
     const usedIds = editBranches.map((e) => e.branchId)
     const available = allBranches.find((b) => !usedIds.includes(b.id))
     if (available) {
-      setEditBranches([...editBranches, { branchId: available.id, quantity: 0, lowStockAlert: 10 }])
+      setEditBranches([...editBranches, { branchId: available.id, quantity: 0, lowStockAlert: 0 }])
     }
   }
 
