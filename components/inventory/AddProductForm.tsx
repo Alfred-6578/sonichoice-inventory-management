@@ -53,7 +53,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
           setBranches(b)
           // Initialize with first branch if no entries yet
           if (branchEntries.length === 0 && b.length > 0) {
-            setBranchEntries([{ branchId: b[0].id, quantity: 0, lowStockAlert: 10 }])
+            setBranchEntries([{ branchId: b[0].id, quantity: 0, lowStockAlert: 0 }])
           }
         })
         .catch((err) => console.error('Failed to load data:', err))
@@ -87,7 +87,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
     setDescription('')
     setAdditionalInfo('')
     setDateReceived('')
-    setBranchEntries(branches.length > 0 ? [{ branchId: branches[0].id, quantity: 0, lowStockAlert: 10 }] : [])
+    setBranchEntries(branches.length > 0 ? [{ branchId: branches[0].id, quantity: 0, lowStockAlert: 0 }] : [])
     setError('')
     setSuccess('')
   }
@@ -96,7 +96,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
     const usedIds = branchEntries.map((e) => e.branchId)
     const available = branches.find((b) => !usedIds.includes(b.id))
     if (available) {
-      setBranchEntries([...branchEntries, { branchId: available.id, quantity: 0, lowStockAlert: 10 }])
+      setBranchEntries([...branchEntries, { branchId: available.id, quantity: 0, lowStockAlert: 0 }])
     }
   }
 

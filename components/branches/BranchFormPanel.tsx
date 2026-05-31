@@ -80,9 +80,11 @@ export default function BranchFormPanel({ isOpen, onClose, onSubmit }: BranchFor
         address: formData.address,
         city: formData.city,
         state: formData.state,
-        phone: formData.phone,
-        email: formData.email,
         country: "Nigeria",
+        // Only send optional contact fields when filled — the backend rejects
+        // an empty string ("Email must be a valid email address").
+        ...(formData.phone.trim() ? { phone: formData.phone.trim() } : {}),
+        ...(formData.email.trim() ? { email: formData.email.trim() } : {}),
       })
       setSuccess(`"${result.name}" has been added successfully!`)
       setFormData({
@@ -206,11 +208,10 @@ export default function BranchFormPanel({ isOpen, onClose, onSubmit }: BranchFor
 
           <Input
             id="manager-name"
-            label="Manager Name"
+            label="Manager Name (optional)"
             value={formData.manager}
             onChange={(e) => handleManagerNameChange(e.target.value)}
             placeholder="Full name"
-            required
           />
 
           

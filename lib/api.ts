@@ -17,6 +17,37 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
+// Extract the most specific error message the backend gives us.
+// Handles NestJS-style shapes: { message: string }, { message: string[] },
+// { error: string }, { errors: [...] }, and falls back to the status code.
+function extractErrorMessage(data: unknown, status: number): string {
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+
+    // message can be a string or an array of validation strings
+    if (Array.isArray(d.message)) {
+      const joined = d.message.filter(Boolean).join(", ");
+      if (joined) return joined;
+    } else if (typeof d.message === "string" && d.message) {
+      return d.message;
+    }
+
+    // some APIs use `error` or an `errors` array/object
+    if (typeof d.error === "string" && d.error) return d.error;
+    if (Array.isArray(d.errors)) {
+      const joined = d.errors
+        .map((e) =>
+          typeof e === "string" ? e : (e as Record<string, unknown>)?.message
+        )
+        .filter(Boolean)
+        .join(", ");
+      if (joined) return joined;
+    }
+  }
+
+  return `Request failed (${status})`;
+}
+
 function handleAuthFailure() {
   localStorage.removeItem("token");
   localStorage.removeItem("refreshToken");
@@ -130,7 +161,7 @@ export async function api<T = unknown>(
             handleAuthFailure();
             throw new Error("Session expired. Please log in again.");
           }
-          throw new Error(retryData?.message || `Request failed (${retryRes.status})`);
+          throw new Error(extractErrorMessage(retryData, retryRes.status));
         }
 
         return retryData as T;
@@ -146,7 +177,11 @@ export async function api<T = unknown>(
     }
 
     if (!res.ok) {
-      throw new Error(data?.message || `Request failed (${res.status})`);
+      // Surface the raw server body in dev to make debugging 4xx/5xx easier
+      if (process.env.NODE_ENV !== "production") {
+        console.error(`API ${method} ${endpoint} failed (${res.status}):`, data);
+      }
+      throw new Error(extractErrorMessage(data, res.status));
     }
 
     return data as T;

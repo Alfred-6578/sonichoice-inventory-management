@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sonichoice — Delivery Operations Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<!-- Lucide icons via CDN -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root {
+    --amber: #f59e0b;
+    --amber-hover: #d97706;
+    --amber-muted: #fff9eb;
+    --ink: #111827;
+    --ink-bg: #0f172a;
+    --ink-secondary: #374151;
+    --ink-muted: #6b7280;
+    --ink-subtle: #9ca3af;
+    --border: #e4e7ec;
+    --slate-300: #cbd5e1;
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+    --emerald-400: #34d399;
+    --delivered: #16a34a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: rgba(17, 24, 39, 90);
+    color: #fff;
+    overflow-x: hidden;
+    line-height: 1.5;
+  }
+
+  .syne { font-family: 'Syne', sans-serif; }
+  .mono { font-family: 'DM Mono', monospace; }
+
+  a { text-decoration: none; color: inherit; }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes glow {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 0.35; }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.3); }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .fade-up { animation: fadeUp 0.8s ease-out both; }
+  .fade-in { animation: fadeIn 1s ease-out both; }
+  .delay-1 { animation-delay: 0.1s; }
+  .delay-2 { animation-delay: 0.2s; }
+  .delay-3 { animation-delay: 0.3s; }
+  .delay-4 { animation-delay: 0.4s; }
+  .delay-5 { animation-delay: 0.5s; }
+  .delay-6 { animation-delay: 0.6s; }
+
+  /* ─── REVEAL ON SCROLL ─── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ─── NAVBAR ─── */
+  .navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px;
+    background: rgba(17, 24, 39, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 50;
+  }
+  @media (min-width: 400px) { .navbar { padding: 24px 32px; } }
+  @media (min-width: 768px) { .navbar { padding: 24px 48px; } }
+  @media (min-width: 1024px) { .navbar { padding: 24px 72px; } }
+  @media (min-width: 1280px) { .navbar { padding: 24px 108px; } }
+
+  .logo { display: flex; align-items: center; gap: 8px; }
+  .logo-square {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--amber);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #000;
+  }
+  .logo-text {
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.03em;
+    color: #fff;
+  }
+
+  .nav-links {
+    display: none;
+    align-items: center;
+    gap: 32px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+  @media (min-width: 768px) { .nav-links { display: flex; } }
+  .nav-links a { transition: color 0.2s; }
+  .nav-links a:hover { color: var(--ink-secondary); color: #94a3b8; }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    background: var(--amber);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .cta-btn:hover { opacity: 0.9; }
+
+  /* ─── LAYOUT ─── */
+  .container {
+    padding: 0 24px;
+    position: relative;
+    overflow-x: hidden;
+  }
+  @media (min-width: 768px) { .container { padding: 0 48px; } }
+  @media (min-width: 1024px) { .container { padding: 0 72px; } }
+
+  /* ─── HERO ─── */
+  .hero {
+    width: 100%;
+    padding: 160px 0 72px;
+    position: relative;
+  }
+  @media (min-width: 400px) { .hero { padding-bottom: 96px; } }
+
+  .hero-glow {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 400px;
+    background: rgba(245, 158, 11, 0.2);
+    filter: blur(140px);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: glow 4s ease-in-out infinite;
+  }
+
+  .hero-inner {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+    gap: 64px;
+  }
+
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: var(--amber);
+    gap: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .eyebrow-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--amber);
+    border-radius: 50%;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  .hero h1 {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #fff;
+    margin-bottom: 24px;
+  }
+  @media (min-width: 400px) { .hero h1 { font-size: 36px; } }
+  @media (min-width: 480px) { .hero h1 { font-size: 40px; } }
+  @media (min-width: 640px) { .hero h1 { font-size: 48px; } }
+
+  .hero h1 em { font-style: normal; color: var(--amber); }
+  .hero-subheading {
+    color: var(--ink-muted);
+    font-size: 24px;
+    font-weight: 700;
+    display: block;
+  }
+  @media (min-width: 400px) { .hero-subheading { font-size: 30px; } }
+  @media (min-width: 480px) { .hero-subheading { font-size: 36px; } }
+  @media (min-width: 640px) { .hero-subheading { font-size: 42px; } }
+
+  .hero-subtitle {
+    font-size: 16px;
+    color: rgba(228, 231, 236, 0.7);
+    margin-bottom: 32px;
+    max-width: 640px;
+  }
+  @media (min-width: 480px) { .hero-subtitle { font-size: 18px; } }
+  .hero-subtitle strong { font-weight: 700; }
+
+  .hero-buttons {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 479px) {
+    .hero-buttons { flex-direction: column; width: 100%; }
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Syne', sans-serif;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn:active { transform: scale(0.98); }
+
+  .btn-hero {
+    background: var(--amber);
+    color: #fff;
+  }
+  .btn-ghost {
+    background: rgba(107, 114, 128, 0.4);
+    border: 1px solid rgba(228, 231, 236, 0.2);
+    color: var(--border);
+    opacity: 0.8;
+  }
+  .btn-ghost:hover { opacity: 1; }
+
+  .trust-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+  @media (min-width: 480px) { .trust-row { gap: 24px; } }
+
+  .trust-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(228, 231, 236, 0.7);
+  }
+  @media (max-width: 399px) {
+    .trust-item { flex-direction: column; }
+  }
+
+  .trust-divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border);
+  }
+
+  /* ─── DASHBOARD PREVIEW ─── */
+  .dashboard-preview {
+    width: 100%;
+    max-width: 1024px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--slate-800);
+    background: #0b1220;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+  }
+
+  .browser-bar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 16px;
+    border-bottom: 1px solid var(--slate-800);
+    background: #0f172a;
+  }
+  .browser-dots {
+    position: absolute;
+    left: 16px;
+    display: flex;
+    gap: 8px;
+  }
+  .browser-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .dot-red { background: #f87171; }
+  .dot-yellow { background: #facc15; }
+  .dot-green { background: #4ade80; }
+  .browser-url {
+    color: var(--slate-400);
+    font-size: 14px;
+    background: var(--slate-800);
+    padding: 4px 24px;
+    border-radius: 6px;
+  }
+
+  .dashboard-body {
+    display: flex;
+  }
+
+  .dash-sidebar {
+    display: none;
+    border-right: 1px solid var(--slate-800);
+    padding: 24px 8px;
+    background: var(--ink-bg);
+  }
+  @media (min-width: 420px) {
+    .dash-sidebar { display: block; padding: 24px 16px; }
+  }
+  @media (min-width: 1024px) {
+    .dash-sidebar { width: 240px; padding: 24px; }
+  }
+
+  .dash-sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .dash-sidebar-logo-text {
+    color: #fff;
+    font-weight: 600;
+  }
+  @media (max-width: 1023px) { .dash-sidebar-logo-text { display: none; } }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--slate-400);
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  @media (min-width: 400px) { .sidebar-item { padding: 8px 12px; } }
+  .sidebar-item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sidebar-item.active {
+    background: var(--slate-800);
+    color: #fff;
+  }
+  .sidebar-item:not(.active):hover {
+    background: rgba(107,114,128,0.2);
+  }
+  .sidebar-item-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--slate-400);
+  }
+  .sidebar-item span {
+    font-size: 14px;
+  }
+  @media (max-width: 1023px) {
+    .sidebar-item span:not(.sidebar-badge) { display: none; }
+  }
+  .sidebar-badge {
+    font-size: 12px;
+    background: var(--amber);
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  @media (max-width: 1023px) { .sidebar-badge { display: none; } }
+
+  .dash-main {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  @media (min-width: 480px) { .dash-main { padding: 24px; } }
+  @media (min-width: 768px) { .dash-main { padding: 32px; } }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  @media (min-width: 768px) {
+    .metrics-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  .metric-card {
+    background: #0f172a;
+    border: 1px solid var(--slate-800);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  @media (min-width: 480px) { .metric-card { padding: 20px; } }
+  .metric-top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+  }
+  .metric-label {
+    font-size: 12px;
+    color: var(--slate-400);
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-size: 24px;
+    font-weight: 700;
+  }
+  @media (min-width: 768px) { .metric-value { font-size: 30px; } }
+  .metric-delta {
+    font-size: 12px;
+    color: var(--slate-500);
+    margin-top: 4px;
+  }
+
+  .bar-amber { background: var(--amber); }
+  .bar-delivered { background: var(--delivered); }
+  .bar-muted { background: var(--ink-muted); }
+  .bar-white { background: #fff; }
+
+  .text-amber { color: var(--amber); }
+  .text-delivered { color: var(--delivered); }
+  .text-muted { color: var(--ink-muted); }
+  .text-white { color: #fff; }
+
+  .table-block {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    font-size: 14px;
+  }
+  .table-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    font-size: 12px;
+    color: var(--slate-500);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--slate-800);
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    gap: 4px;
+    color: var(--slate-300);
+    padding: 8px 0;
+  }
+  .table-row .client-name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  @media (max-width: 479px) {
+    .table-row .client-name { justify-content: center; }
+    .table-row .client-name span { display: none; }
+  }
+  .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--border);
+  }
+
+  .badge {
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    width: fit-content;
+    text-transform: capitalize;
+  }
+  .badge-transit { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+  .badge-pending { background: var(--slate-700); color: var(--slate-400); }
+  .badge-received { background: rgba(52, 211, 153, 0.2); color: var(--emerald-400); }
+  .badge-dot { margin-right: 4px; }
+
+  .status-wrap {
+    display: flex;
+    justify-content: center;
+  }
+  @media (max-width: 399px) {
+    .badge span:not(.badge-dot) { display: none; }
+  }
+
+  /* ─── STATS BAND ─── */
+  .stats-section {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  @media (min-width: 1024px) { .stats-section { padding: 40px 0; } }
+
+  .stats-box {
+    max-width: 1280px;
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid var(--slate-800);
+    background: var(--ink-bg);
+    padding: 8px 0;
+  }
+  @media (min-width: 400px) { .stats-box { padding: 32px 0; } }
+  @media (min-width: 1280px) { .stats-box { padding: 32px 40px; } }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 1024px) {
+    .stats-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  .stat-item {
+    text-align: center;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-bottom: 1px solid var(--slate-700);
+  }
+  .stat-item:last-child { border-bottom: none; }
+  @media (min-width: 1024px) {
+    .stat-item {
+      padding: 16px 24px;
+      border-bottom: none;
+      border-right: 1px solid var(--slate-700);
+    }
+    .stat-item:last-child { border-right: none; }
+  }
+
+  .stat-value {
+    font-size: 42px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    letter-spacing: -0.02em;
+  }
+  @media (min-width: 400px) {
+    .stat-value { font-size: 48px; margin-bottom: 12px; }
+  }
+
+  .stat-label {
+    color: var(--slate-400);
+    max-width: 180px;
+    line-height: 1.3;
+  }
+
+  /* ─── FEATURES ─── */
+  .features-section {
+    width: 100%;
+    padding: 112px 0;
+  }
+  @media (min-width: 1280px) {
+    .features-section { padding: 112px 80px; }
+  }
+
+  .features-header {
+    max-width: 1152px;
+    margin: 0 auto 64px;
+  }
+  .features-eyebrow {
+    color: var(--amber);
+    font-size: 14px;
+    letter-spacing: 0.15em;
+    margin-bottom: 12px;
+  }
+  .features-title {
+    font-size: 27px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.1;
+  }
+  @media (min-width: 480px) { .features-title { font-size: 30px; } }
+  @media (min-width: 640px) { .features-title { font-size: 36px; } }
+  @media (min-width: 1024px) { .features-title { font-size: 48px; } }
+
+  .features-subtitle {
+    color: var(--slate-400);
+    font-size: 18px;
+    margin-top: 24px;
+    max-width: 640px;
+  }
+
+  .features-grid {
+    max-width: 1152px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    border: 1px solid var(--slate-800);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  @media (min-width: 768px) {
+    .features-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .features-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .feature-card {
+    padding: 40px;
+    border-right: 1px solid var(--slate-800);
+    border-bottom: 1px solid var(--slate-800);
+    transition: background 0.3s;
+  }
+  .feature-card:hover { background: rgba(107, 114, 128, 0.1); }
+  .feature-card:last-child { border-right: none; }
+
+  @media (min-width: 768px) {
+    .feature-card:nth-child(2n) { border-right: none; }
+  }
+  @media (min-width: 1024px) {
+    .feature-card:nth-child(2n) { border-right: 1px solid var(--slate-800); }
+    .feature-card:nth-child(3n) { border-right: none; }
+  }
+
+  .feature-icon-box {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: var(--slate-800);
+    margin-bottom: 24px;
+    color: var(--amber);
+    transition: transform 0.3s;
+  }
+  .feature-card:hover .feature-icon-box { transform: scale(1.1); }
+
+  .feature-title {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .feature-desc {
+    color: var(--slate-400);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+  .feature-tag {
+    font-size: 12px;
+    color: var(--amber);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    padding: 4px 12px;
+    border-radius: 6px;
+    display: inline-block;
+  }
+
+  /* ─── WORKFLOW ─── */
+  .workflow-section {
+    width: 100%;
+    padding: 56px 0;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .workflow-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  @media (min-width: 1280px) {
+    .workflow-inner { padding: 0 24px; }
+  }
+
+  .workflow-eyebrow {
+    color: var(--amber);
+    font-size: 14px;
+    letter-spacing: 0.15em;
+    margin-bottom: 12px;
+  }
+  .workflow-title {
+    font-size: 27px;
+    font-weight: 800;
+    margin-bottom: 80px;
+  }
+  @media (min-width: 480px) { .workflow-title { font-size: 30px; } }
+  @media (min-width: 640px) { .workflow-title { font-size: 36px; } }
+  @media (min-width: 1024px) { .workflow-title { font-size: 48px; } }
+
+  .workflow-steps {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+  @media (min-width: 768px) {
+    .workflow-steps { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  .workflow-line {
+    display: none;
+    position: absolute;
+    top: 40px;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+  }
+  @media (min-width: 768px) { .workflow-line { display: block; } }
+
+  .workflow-step {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .workflow-icon-box {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: #1a1f2e;
+    border: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 24px;
+    z-index: 10;
+    position: relative;
+    transition: transform 0.3s, border-color 0.3s;
+  }
+  .workflow-step:hover .workflow-icon-box {
+    transform: translateY(-4px);
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+
+  .workflow-icon-box svg { color: var(--amber); width: 32px; height: 32px; }
+
+  .workflow-step h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .workflow-step p {
+    color: #9ca3af;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 320px;
+  }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    margin-top: 88px;
+    width: 100vw;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(17, 24, 39, 0.8);
+    padding: 32px 24px;
+    border-top: 1px solid rgba(228, 231, 236, 0.3);
+  }
+  @media (max-width: 767px) {
+    .footer {
+      flex-direction: column;
+      gap: 16px;
+    }
+  }
+  @media (min-width: 400px) { .footer { padding: 32px; } }
+  @media (min-width: 768px) { .footer { padding: 32px 48px; } }
+  @media (min-width: 1024px) { .footer { padding: 32px 72px; } }
+  @media (min-width: 1280px) { .footer { padding: 32px 88px; } }
+
+  .footer-center { color: var(--ink-muted); }
+
+  .footer-links {
+    display: flex;
+    gap: 16px;
+    color: var(--ink-muted);
+  }
+  .footer-links a { transition: color 0.2s; }
+  .footer-links a:hover { color: #fff; }
+
+  /* Hide workflow line animation */
+  .workflow-line-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--amber), transparent);
+    width: 0;
+    animation: lineFill 3s ease-in-out infinite;
+  }
+  @keyframes lineFill {
+    0% { left: 0; width: 0; }
+    50% { left: 0; width: 100%; }
+    100% { left: 100%; width: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ NAVBAR ═══════════════ -->
+<nav class="navbar">
+  <div class="logo">
+    <div class="logo-square">S</div>
+    <span class="logo-text">SONICHOICE</span>
+  </div>
+
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#workflow">How it works</a>
+    <a href="#stats">Why sonichoice</a>
+  </div>
+
+  <div>
+    <a href="#" class="cta-btn">
+      Sign In
+      <svg viewBox="0 0 24 24" style="width:12px;height:12px;fill:currentColor;">
+        <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+      </svg>
+    </a>
+  </div>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<div class="container">
+  <section class="hero">
+    <div class="hero-glow"></div>
+
+    <div class="hero-inner">
+      <div class="hero-content">
+
+        <div class="eyebrow fade-up">
+          <span class="eyebrow-dot"></span>
+          Delivery Operations Platform
+        </div>
+
+        <h1 class="syne fade-up delay-1">
+          Every parcel. <em>Every branch.</em>
+          <br />
+          <span class="hero-subheading">Always accounted for.</span>
+        </h1>
+
+        <p class="hero-subtitle fade-up delay-2">
+          Sonichoice gives your delivery company a single system to track
+          parcels from <strong>drop-off to doorstep</strong> — across every
+          branch, every route, in real time.
+        </p>
+
+        <div class="hero-buttons fade-up delay-3">
+          <button class="btn btn-hero">
+            Start tracking
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;">
+              <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+            </svg>
+          </button>
+          <button class="btn btn-ghost" onclick="document.getElementById('workflow').scrollIntoView({behavior:'smooth'})">
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+            </svg>
+            See how it works
+          </button>
+        </div>
+
+        <div class="trust-row fade-up delay-4">
+          <div class="trust-item">
+            <i data-lucide="shield-check" style="width:20px;height:20px;"></i>
+            Role-based access
+          </div>
+          <span class="trust-divider"></span>
+          <div class="trust-item">
+            <i data-lucide="map-pin" style="width:20px;height:20px;"></i>
+            Multi-branch support
+          </div>
+          <span class="trust-divider"></span>
+          <div class="trust-item">
+            <i data-lucide="check" style="width:20px;height:20px;"></i>
+            Real-time tracking
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Dashboard Preview -->
+      <div class="dashboard-preview fade-up delay-5">
+
+        <div class="browser-bar">
+          <div class="browser-dots">
+            <div class="browser-dot dot-red"></div>
+            <div class="browser-dot dot-yellow"></div>
+            <div class="browser-dot dot-green"></div>
+          </div>
+          <div class="browser-url">app.sonichoice.ng/dashboard</div>
+        </div>
+
+        <div class="dashboard-body">
+
+          <!-- Sidebar -->
+          <div class="dash-sidebar">
+            <div class="dash-sidebar-logo">
+              <div class="logo-square">S</div>
+              <span class="dash-sidebar-logo-text">SONICHOICE</span>
+            </div>
+
+            <div class="sidebar-nav">
+              <div class="sidebar-item active">
+                <div class="sidebar-item-left">
+                  <i data-lucide="layout-dashboard" class="sidebar-item-icon"></i>
+                  <span>Dashboard</span>
+                </div>
+              </div>
+              <div class="sidebar-item">
+                <div class="sidebar-item-left">
+                  <i data-lucide="package" class="sidebar-item-icon"></i>
+                  <span>Parcels</span>
+                </div>
+                <span class="sidebar-badge">9</span>
+              </div>
+              <div class="sidebar-item">
+                <div class="sidebar-item-left">
+                  <i data-lucide="map-pin" class="sidebar-item-icon"></i>
+                  <span>Branches</span>
+                </div>
+              </div>
+              <div class="sidebar-item">
+                <div class="sidebar-item-left">
+                  <i data-lucide="user" class="sidebar-item-icon"></i>
+                  <span>Clients</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main -->
+          <div class="dash-main">
+
+            <!-- Metrics -->
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-top-bar bar-amber"></div>
+                <div class="metric-label">IN TRANSIT</div>
+                <div class="metric-value text-amber">3</div>
+                <div class="metric-delta">+1 today</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-top-bar bar-delivered"></div>
+                <div class="metric-label">DELIVERED</div>
+                <div class="metric-value text-delivered">24</div>
+                <div class="metric-delta">↑ 18%</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-top-bar bar-muted"></div>
+                <div class="metric-label">PENDING</div>
+                <div class="metric-value text-muted">5</div>
+                <div class="metric-delta">—</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-top-bar bar-white"></div>
+                <div class="metric-label">REVENUE</div>
+                <div class="metric-value text-white">₦187k</div>
+                <div class="metric-delta">↑ 12%</div>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-block">
+              <div class="table-header">
+                <span>ID</span>
+                <span>CLIENT</span>
+                <span>STATUS</span>
+              </div>
+
+              <div class="table-row">
+                <span style="color:var(--slate-400);">PCL-009</span>
+                <div class="client-name">
+                  <div class="avatar" style="background:#2563eb;">KA</div>
+                  <span>Kemi Adeyemi</span>
+                </div>
+                <div class="status-wrap">
+                  <span class="badge badge-transit"><span class="badge-dot">●</span><span>Transit</span></span>
+                </div>
+              </div>
+
+              <div class="table-row">
+                <span style="color:var(--slate-400);">PCL-008</span>
+                <div class="client-name">
+                  <div class="avatar" style="background:#7c3aed;">NE</div>
+                  <span>Ngozi Eze</span>
+                </div>
+                <div class="status-wrap">
+                  <span class="badge badge-transit"><span class="badge-dot">●</span><span>Transit</span></span>
+                </div>
+              </div>
+
+              <div class="table-row">
+                <span style="color:var(--slate-400);">PCL-007</span>
+                <div class="client-name">
+                  <div class="avatar" style="background:#059669;">TB</div>
+                  <span>Tunde Bakare</span>
+                </div>
+                <div class="status-wrap">
+                  <span class="badge badge-pending"><span class="badge-dot">●</span><span>Pending</span></span>
+                </div>
+              </div>
+
+              <div class="table-row">
+                <span style="color:var(--slate-400);">PCL-005</span>
+                <div class="client-name">
+                  <div class="avatar" style="background:#2563eb;">KA</div>
+                  <span>Kemi Adeyemi</span>
+                </div>
+                <div class="status-wrap">
+                  <span class="badge badge-received"><span class="badge-dot">●</span><span>Received</span></span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ STATS ═══════════════ -->
+  <section id="stats" class="stats-section reveal">
+    <div class="stats-box">
+      <div class="stats-grid">
+
+        <div class="stat-item">
+          <div class="stat-value syne">
+            <span style="color:var(--amber);">3</span>
+          </div>
+          <p class="stat-label">Branch locations supported</p>
+        </div>
+
+        <div class="stat-item">
+          <div class="stat-value syne">
+            <span style="color:#fff;">100</span><span style="color:var(--amber);">%</span>
+          </div>
+          <p class="stat-label">Parcel visibility, end to end</p>
+        </div>
+
+        <div class="stat-item">
+          <div class="stat-value syne">
+            <span style="color:var(--amber);">2</span>
+          </div>
+          <p class="stat-label">Role levels — Staff &amp; Admin</p>
+        </div>
+
+        <div class="stat-item">
+          <div class="stat-value syne">
+            <span style="color:#fff;">0</span><span style="color:var(--amber);">s</span>
+          </div>
+          <p class="stat-label">Time to locate any parcel</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ FEATURES ═══════════════ -->
+  <section id="features" class="features-section">
+    <div class="features-header reveal">
+      <p class="features-eyebrow mono">WHAT SONICHOICE DOES</p>
+      <h2 class="features-title syne">Built for how delivery companies actually operate</h2>
+      <p class="features-subtitle">
+        Not a generic logistics tool. Sonichoice is designed specifically for
+        multi-branch delivery companies that move parcels between locations.
+      </p>
+    </div>
+
+    <div class="features-grid reveal">
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <i data-lucide="package" style="width:24px;height:24px;"></i>
+        </div>
+        <h3 class="feature-title">Parcel tracking</h3>
+        <p class="feature-desc">Log every parcel with full details — sender, recipient, size, fee, route. Know exactly where it is at any point in its journey.</p>
+        <span class="feature-tag">CORE FEATURE</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <i data-lucide="map-pin" style="width:24px;height:24px;"></i>
+        </div>
+        <h3 class="feature-title">Branch management</h3>
+        <p class="feature-desc">Manage all your branch locations in one place. See which parcels are sitting where and how long they've been there.</p>
+        <span class="feature-tag">OPERATIONS</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <i data-lucide="arrow-right-left" style="width:24px;height:24px;"></i>
+        </div>
+        <h3 class="feature-title">Movement history</h3>
+        <p class="feature-desc">Full timeline for every parcel. Every branch it passed through, every status change — all logged and visible to staff and admin.</p>
+        <span class="feature-tag">TRANSPARENCY</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <i data-lucide="users" style="width:24px;height:24px;"></i>
+        </div>
+        <h3 class="feature-title">Client profiles</h3>
+        <p class="feature-desc">Keep records of every sender. Track how many parcels each client has sent, their total spend, and all active deliveries.</p>
+        <span class="feature-tag">CRM</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <i data-lucide="shield-check" style="width:24px;height:24px;"></i>
+        </div>
+        <h3 class="feature-title">Role-based access</h3>
+        <p class="feature-desc">Admins see everything. Staff see only what they need. Admin-only pages don't even appear in staff navigation.</p>
+        <span class="feature-tag">SECURITY</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <i data-lucide="layout-dashboard" style="width:24px;height:24px;"></i>
+        </div>
+        <h3 class="feature-title">Live dashboard</h3>
+        <p class="feature-desc">At-a-glance metrics for in-transit, received, pending, and revenue. Branch-by-branch breakdown and activity.</p>
+        <span class="feature-tag">ANALYTICS</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ WORKFLOW ═══════════════ -->
+  <section id="workflow" class="workflow-section">
+    <div class="workflow-inner">
+      <p class="workflow-eyebrow mono reveal">THE WORKFLOW</p>
+      <h2 class="workflow-title syne reveal">From drop-off to received</h2>
+
+      <div class="workflow-steps">
+        <div class="workflow-line">
+          <div class="workflow-line-fill"></div>
+        </div>
+
+        <div class="workflow-step reveal">
+          <div class="workflow-icon-box">
+            <i data-lucide="mail"></i>
+          </div>
+          <h3>Client drops off</h3>
+          <p>Client brings a parcel to any branch. Staff logs it with recipient details and size.</p>
+        </div>
+
+        <div class="workflow-step reveal">
+          <div class="workflow-icon-box">
+            <i data-lucide="cpu"></i>
+          </div>
+          <h3>Parcel moves</h3>
+          <p>Staff dispatch it to the next branch. Each movement updates the parcel's location and timeline.</p>
+        </div>
+
+        <div class="workflow-step reveal">
+          <div class="workflow-icon-box">
+            <i data-lucide="map-pin"></i>
+          </div>
+          <h3>Arrives at destination</h3>
+          <p>When it reaches the delivery branch, staff confirm arrival. Parcel shows as ready for final delivery.</p>
+        </div>
+
+        <div class="workflow-step reveal">
+          <div class="workflow-icon-box">
+            <i data-lucide="check"></i>
+          </div>
+          <h3>Received</h3>
+          <p>Arrived at the destination branch. Marked received. Full history recorded.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="footer">
+  <div class="logo">
+    <div class="logo-square">S</div>
+    <span class="logo-text">SONICHOICE</span>
+  </div>
+  <div class="footer-center">© <span id="year"></span> SwiftLog. All rights reserved.</div>
+  <div class="footer-links">
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+    <a href="#">Sign in</a>
+  </div>
+</footer>
+
+<script>
+  // Initialize lucide icons
+  lucide.createIcons();
+
+  // Year in footer
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+
+  // Stagger workflow step reveals
+  document.querySelectorAll('.workflow-step').forEach((step, i) => {
+    step.style.transitionDelay = `${i * 0.15}s`;
+  });
+
+  // Stagger feature card reveals
+  document.querySelectorAll('.feature-card').forEach((card, i) => {
+    card.style.transitionDelay = `${i * 0.08}s`;
+  });
+</script>
+
+</body>
+</html>
