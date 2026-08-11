@@ -43,6 +43,7 @@ type MerchantsResponse = {
 };
 
 export type MerchantFilters = {
+  page?: number;
   search?: string;
   status?: string;
 };
@@ -51,6 +52,7 @@ export async function getMerchants(
   filters: MerchantFilters = {}
 ): Promise<MerchantsResponse> {
   const params = new URLSearchParams();
+  if (filters.page) params.set("page", String(filters.page));
   if (filters.search) params.set("search", filters.search);
   if (filters.status) params.set("status", filters.status);
   const query = params.toString();
