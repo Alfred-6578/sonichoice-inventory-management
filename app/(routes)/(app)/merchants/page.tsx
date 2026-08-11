@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import MerchantGrid from '@/components/merchants/MerchantGrid'
 import MerchantDetailPanel from '@/components/merchants/MerchantDetailPanel'
 import PageHeader from '@/components/ui/PageHeader'
@@ -70,6 +70,9 @@ export default function MerchantsPage() {
   const [merchants, setMerchants] = useState<MerchantProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [filters, setFilters] = useState<MerchantFilters>({
     search: '',
     status: 'all',
@@ -82,10 +85,16 @@ export default function MerchantsPage() {
     setError("")
     try {
       const res = await getMerchants({
+        page,
         search: debouncedSearch || undefined,
         status: filters.status !== 'all' ? filters.status.toUpperCase() : undefined,
       })
       setMerchants((res.data || []).map(mapApiMerchant))
+
+      if (res.meta) {
+        setTotalCount(res.meta.total)
+        setTotalPages(res.meta.lastPage)
+      }
     } catch (err) {
       console.error("Failed to fetch merchants:", err)
       setError(err instanceof Error ? err.message : "Failed to load merchants")
@@ -93,18 +102,23 @@ export default function MerchantsPage() {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, filters.status])
+  }, [page, debouncedSearch, filters.status])
 
   useEffect(() => {
     fetchMerchants()
   }, [fetchMerchants])
 
+  // Reset to page 1 whenever the result set changes underneath us
+  const handleFilterChange = (f: MerchantFilters) => {
+    if (f.search !== filters.search || f.status !== filters.status) setPage(1)
+    setFilters(f)
+  }
+
   const selectedMerchant = merchants.find(m => m.id === selectedId) || null
-  const activeMerchants = merchants.filter(m => m.status === 'active').length
 
   const exportConfig: ExportConfig = {
     title: "Merchants Report",
-    subtitle: `${merchants.length} merchants · ${activeMerchants} active`,
+    subtitle: `${merchants.length} merchants · Page ${page} of ${totalPages}`,
     filename: "sonichoice-merchants",
     columns: [
       { header: "Name", key: "name", width: 24 },
@@ -125,9 +139,9 @@ export default function MerchantsPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        headerText={`Network · ${merchants.length} partners`}
+        headerText={`Network · ${totalCount} partners`}
         mainText="Merchants"
-        subText={`${activeMerchants} active merchants`}
+        subText={`${merchants.length} shown · Page ${page} of ${totalPages}`}
         loading={loading}
         button1="Export"
         button1Icon={<Download size={16} />}
@@ -141,6 +155,7 @@ export default function MerchantsPage() {
         filters={filters}
         setFilters={setFilters}
         total={merchants.length}
+        onChange={(f) => handleFilterChange(f as MerchantFilters)}
         filterConfigs={[
           {
             label: 'Status',
@@ -166,6 +181,29 @@ export default function MerchantsPage() {
           onSelect={setSelectedId}
           selectedId={selectedId}
         />
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pb-4">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 text-sm border border-ink-subtle text-ink-subtle rounded-lg disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-ink-muted">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="px-3 py-1.5 text-sm border border-ink-subtle text-ink-subtle rounded-lg disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
       )}
 
       {selectedMerchant && (
