@@ -22,10 +22,13 @@ export default function PageHeader({
   subText,
   onButton1,
   onButton2,
+  onButton3,
   button1,
   button2,
+  button3,
   button1Icon,
   button2Icon,
+  button3Icon,
   loading = false,
 }:{
     headerText?: string,
@@ -33,10 +36,14 @@ export default function PageHeader({
     mainText: string,
     onButton1?: ()=> void,
     onButton2?: ()=> void,
+    onButton3?: ()=> void,
     button1?: string,
     button2?: string,
+    /** Secondary action rendered between button1 and the primary button2. */
+    button3?: string,
     button1Icon?: ReactNode
     button2Icon?: ReactNode
+    button3Icon?: ReactNode
     loading?: boolean
 }) {
 
@@ -63,7 +70,7 @@ export default function PageHeader({
       </div>
 
       {/* RIGHT ACTIONS */}
-     { button1 || button2 ?
+     { button1 || button2 || button3 ?
         <div className="flex max-xsm:flex-col items-center gap-2">
 
         {/* MY BRANCH */}
@@ -76,6 +83,16 @@ export default function PageHeader({
         >
             {button1Icon && button1Icon}
             {button1}
+        </Button>
+        }
+        {button3 && <Button
+            size="sm"
+            variant="secondary"
+            onClick={onButton3}
+            className="max-lg:w-full"
+        >
+            {button3Icon && button3Icon}
+            {button3}
         </Button>
         }
         {button2 && <Button

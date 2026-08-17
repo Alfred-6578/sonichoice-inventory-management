@@ -1,4 +1,5 @@
-import { api } from "./api";
+import { api, extractErrorMessage } from "./api";
+import { BulkUploadResponse } from "./bulk-upload";
 
 // ── Filter / List ──
 
@@ -122,6 +123,61 @@ export async function createProduct(
     method: "POST",
     body: payload,
   });
+}
+
+// ── Bulk upload ──
+
+// The AI parses the sheet server-side and can take 10–60s, so this deliberately
+// bypasses api(): that wrapper forces a JSON Content-Type (which would clobber the
+// multipart boundary) and aborts at 15s.
+const BULK_UPLOAD_TIMEOUT = 120000; // 2 minutes
+
+export async function bulkUploadProducts(
+  file: File
+): Promise<BulkUploadResponse> {
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), BULK_UPLOAD_TIMEOUT);
+
+  try {
+    const res = await fetch(`${BASE_URL}/products/bulk-upload`, {
+      method: "POST",
+      // Content-Type is intentionally omitted — the browser sets it along with
+      // the multipart boundary.
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+
+    if (!res.ok) {
+      throw new Error(extractErrorMessage(data, res.status));
+    }
+
+    return data as BulkUploadResponse;
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(
+        "Upload timed out after 2 minutes. Try splitting the sheet into smaller batches."
+      );
+    }
+    if (err instanceof TypeError && err.message === "Failed to fetch") {
+      throw new Error("Network error. Please check your connection.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // ── Delete ──
