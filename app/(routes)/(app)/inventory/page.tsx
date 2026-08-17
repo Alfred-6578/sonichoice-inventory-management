@@ -7,10 +7,12 @@ import FilterBar, { FilterConfig } from "@/components/ui/FilterBar"
 import InventoryDetailPanel from "@/components/inventory/InventoryDetailPanel"
 import AddProductForm from "@/components/inventory/AddProductForm"
 import PageHeader from "@/components/ui/PageHeader"
-import { Download, Plus } from "lucide-react"
+import { Download, Plus, UploadCloud } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Overlay from "@/components/ui/Overlay"
-import { getProducts, getProduct, ApiProduct } from "@/lib/products"
+import { getProducts, getProduct, bulkUploadProducts, ApiProduct } from "@/lib/products"
+import BulkUploadModal from "@/components/ui/BulkUploadModal"
+import { TemplateColumn } from "@/lib/bulk-upload"
 import { getBranches } from "@/lib/branches"
 import { useDebounce } from "@/hooks/useDebounce"
 import ExportPreviewModal from "@/components/ui/ExportPreviewModal"
@@ -81,6 +83,61 @@ function mapApiProduct(p: ApiProduct): InventoryItem {
   }
 }
 
+// The backend AI maps headers itself, so `aliases` documents the accepted
+// variations for the user rather than constraining the sheet. Product name is the
+// only required field.
+const PRODUCT_TEMPLATE_COLUMNS: TemplateColumn[] = [
+  {
+    header: "Product Name",
+    required: true,
+    aliases: ["Product", "Name", "Item", "Item Name", "product_name"],
+    example: "Ceramic Mug 350ml",
+    width: 26,
+  },
+  {
+    header: "Merchant",
+    aliases: ["Merchant Name", "Supplier", "Vendor", "Store", "Brand"],
+    example: "Bright Traders",
+    width: 22,
+  },
+  {
+    header: "Branch",
+    aliases: ["Branch Name", "Location", "Store", "Outlet"],
+    example: "Enugu",
+    width: 22,
+  },
+  {
+    header: "Quantity",
+    aliases: ["Qty", "Stock", "Count", "Amount"],
+    example: "120",
+    width: 12,
+  },
+  {
+    header: "Low Stock Alert",
+    aliases: ["Low Stock", "Alert", "Threshold", "Min Stock"],
+    example: "10",
+    width: 16,
+  },
+  {
+    header: "Description",
+    aliases: ["Details", "Info", "Product Description"],
+    example: "Matte white, boxed in 12s",
+    width: 30,
+  },
+  {
+    header: "Date Received",
+    aliases: ["Date", "Received Date", "Added Date"],
+    example: "2026-08-01",
+    width: 16,
+  },
+  {
+    header: "Additional Info",
+    aliases: ["Notes", "Remarks", "Comments", "Extra"],
+    example: "Fragile — stack max 3 high",
+    width: 30,
+  },
+]
+
 const configs: FilterConfig[] = [
   {
     label: "Branch",
@@ -123,6 +180,7 @@ const InventoryPage = () => {
   }
   const [formOpen, setFormOpen] = useState(false)
   const [showExportPreview, setShowExportPreview] = useState(false)
+  const [showBulkUpload, setShowBulkUpload] = useState(false)
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -254,6 +312,9 @@ const InventoryPage = () => {
             button1="Export"
             button1Icon={<Download/>}
             onButton1={() => setShowExportPreview(true)}
+            button3="Bulk Upload"
+            button3Icon={<UploadCloud size={16}/>}
+            onButton3={() => setShowBulkUpload(true)}
             button2="Add Product"
             button2Icon={<Plus/>}
             onButton2={()=> setFormOpen(true)}
@@ -331,6 +392,17 @@ const InventoryPage = () => {
         onClose={() => setShowExportPreview(false)}
         config={exportConfig}
       />
+
+      <BulkUploadModal
+        isOpen={showBulkUpload}
+        onClose={() => setShowBulkUpload(false)}
+        title="Bulk Upload Products"
+        subtitle="Import products and their per-branch stock from a spreadsheet"
+        columns={PRODUCT_TEMPLATE_COLUMNS}
+        templateFilename="sonichoice-products-template"
+        onUpload={bulkUploadProducts}
+        onSuccess={fetchProducts}
+      />
     </div>
   )
 }
@@ -341,7 +413,7 @@ function InventoryTableSkeleton() {
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-white border-b border-gray-200">
-            {["SKU", "Item", "Merchant", "Stored At", "Total Stock", "Date In"].map((h) => (
+            {["SKU", "Item", "Merchant", "Stored At", "Total Stock", "Updated"].map((h) => (
               <th key={h} className="text-left px-3 py-2.5 text-xs font-medium text-gray-400 uppercase">
                 {h}
               </th>

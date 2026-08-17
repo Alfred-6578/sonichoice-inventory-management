@@ -20,7 +20,7 @@ function isTokenExpired(token: string): boolean {
 // Extract the most specific error message the backend gives us.
 // Handles NestJS-style shapes: { message: string }, { message: string[] },
 // { error: string }, { errors: [...] }, and falls back to the status code.
-function extractErrorMessage(data: unknown, status: number): string {
+export function extractErrorMessage(data: unknown, status: number): string {
   if (data && typeof data === "object") {
     const d = data as Record<string, unknown>;
 
