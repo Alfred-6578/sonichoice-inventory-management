@@ -119,9 +119,10 @@ export default function InventoryDetailPanel({
   }
 
   const handleSave = async () => {
-    const validBranches = editBranches.filter((b) => b.quantity > 0)
+    // 0 is a valid stock level — keep the branch on the product either way.
+    const validBranches = editBranches.filter((b) => b.quantity >= 0)
     if (validBranches.length === 0) {
-      setError("At least one branch must have quantity > 0")
+      setError("Add at least one branch for this product.")
       return
     }
 

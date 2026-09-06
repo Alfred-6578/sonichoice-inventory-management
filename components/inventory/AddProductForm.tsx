@@ -118,10 +118,11 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
       return
     }
 
-    // Filter out branches with 0 quantity
-    const validBranches = branchEntries.filter((b) => b.quantity > 0)
+    // 0 is a valid stock level — a product can be registered at a branch that
+    // currently holds none of it. Only guard against negatives and no branch at all.
+    const validBranches = branchEntries.filter((b) => b.quantity >= 0)
     if (validBranches.length === 0) {
-      setError('At least one branch must have a quantity greater than 0.')
+      setError('Add at least one branch for this product.')
       return
     }
 
