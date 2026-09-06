@@ -106,7 +106,7 @@ export default function InventoryTable({
                 </Table.Cell>
                 <Table.Cell className="flex flex-wrap gap-1 items-center">
                   {Object.entries(item.stock)
-                    .filter(([, qty]) => qty != null && qty > 0)
+                    .filter(([, qty]) => qty != null)
                     .map(([branch, qty], index) => (
                         <span key={index} className="bg-transit-bg text-transit text-[11px] p-1 border border-transit-border">
                             {branch} ({qty})

@@ -127,11 +127,12 @@ export async function createProduct(
 
 // ── Bulk upload ──
 
-// The AI parses the sheet server-side and can take 10–60s, so this deliberately
-// bypasses api(): that wrapper forces a JSON Content-Type (which would clobber the
-// multipart boundary) and aborts at 15s.
-const BULK_UPLOAD_TIMEOUT = 120000; // 2 minutes
-
+// The AI parses the sheet server-side and can take a long time on large sheets, so
+// this deliberately bypasses api(): that wrapper forces a JSON Content-Type (which
+// would clobber the multipart boundary) and aborts at 15s.
+//
+// No client-side timeout — the request runs until the server or the browser ends
+// it. A large import is allowed to take as long as it needs.
 export async function bulkUploadProducts(
   file: File
 ): Promise<BulkUploadResponse> {
@@ -142,9 +143,6 @@ export async function bulkUploadProducts(
   const formData = new FormData();
   formData.append("file", file);
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), BULK_UPLOAD_TIMEOUT);
-
   try {
     const res = await fetch(`${BASE_URL}/products/bulk-upload`, {
       method: "POST",
@@ -154,7 +152,6 @@ export async function bulkUploadProducts(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: formData,
-      signal: controller.signal,
     });
 
     const text = await res.text();
@@ -166,17 +163,13 @@ export async function bulkUploadProducts(
 
     return data as BulkUploadResponse;
   } catch (err: unknown) {
-    if (err instanceof DOMException && err.name === "AbortError") {
+    if (err instanceof TypeError && err.message === "Failed to fetch") {
       throw new Error(
-        "Upload timed out after 2 minutes. Try splitting the sheet into smaller batches."
+        "Connection lost during upload. The server may still be processing — " +
+          "check your inventory before re-uploading."
       );
     }
-    if (err instanceof TypeError && err.message === "Failed to fetch") {
-      throw new Error("Network error. Please check your connection.");
-    }
     throw err;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
