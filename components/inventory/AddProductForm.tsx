@@ -289,8 +289,8 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
             />
           </div>
 
-          {/* Description */}
-          <div className="mb-4">
+          {/* Description — desktop only: nobody fills this in from a phone */}
+          <div className="mb-4 hidden sm:block">
             <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
               Description (optional)
             </label>
@@ -391,15 +391,16 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
             </button>
           )}
 
-          {/* Additional Info */}
-          <div className="relative my-4">
+          {/* Additional Info — hidden with its fields below sm, so the divider
+              is never left heading an empty section */}
+          <div className="relative my-4 hidden sm:block">
             <div className="absolute inset-0 left-0 right-0 h-px bg-gray-200" style={{ top: '50%' }} />
             <div className="relative inline-block bg-white px-2.5 text-xs font-mono text-gray-400 text-transform-uppercase letter-spacing-wider">
               Additional
             </div>
           </div>
 
-          <div className="mb-4">
+          <div className="mb-4 hidden sm:block">
             <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
               Additional Info (optional)
             </label>

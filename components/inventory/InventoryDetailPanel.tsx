@@ -240,7 +240,7 @@ export default function InventoryDetailPanel({
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-gray-900"
               />
             </div>
-            <div>
+            <div className="hidden sm:block">
               <label className="block font-mono text-[10px] text-gray-400 uppercase mb-1">Description</label>
               <input
                 type="text"
@@ -249,7 +249,7 @@ export default function InventoryDetailPanel({
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-gray-900"
               />
             </div>
-            <div>
+            <div className="hidden sm:block">
               <label className="block font-mono text-[10px] text-gray-400 uppercase mb-1">Additional Info</label>
               <textarea
                 value={editNotes}
@@ -369,7 +369,9 @@ export default function InventoryDetailPanel({
           <div>{branchRows}</div>
         </div>
 
-        <div className="px-4.5 py-4 border-b border-gray-200">
+        {/* Product Info — desktop only. On a phone the stock figures are what
+            matter; tracking id, unit and notes are reference detail. */}
+        <div className="hidden sm:block px-4.5 py-4 border-b border-gray-200">
           <div className="font-mono text-xs text-gray-400 uppercase letter-spacing-wider mb-2.5">Product Info</div>
           <div className="bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
             <div className="flex justify-between items-center px-3.25 py-2.25 border-b border-gray-200">

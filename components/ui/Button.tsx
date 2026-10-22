@@ -17,6 +17,8 @@ interface ButtonProps {
   fullWidth?: boolean;
   className?: string;
   type?: "button" | "submit" | "reset";
+  /** Needed when the button collapses to an icon and the label is hidden. */
+  ariaLabel?: string;
 }
 
 export default function Button({
@@ -30,6 +32,7 @@ export default function Button({
   fullWidth = false,
   className = "",
   type = "button",
+  ariaLabel,
 }: ButtonProps) {
   const base =
     `${syne.className} flex items-center justify-center gap-2 rounded-lg font-bold transition ${className}`;
@@ -71,6 +74,7 @@ export default function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={`${base} ${sizes[size]} ${variants[variant]} ${
         fullWidth ? "w-full" : ""
       }`}
