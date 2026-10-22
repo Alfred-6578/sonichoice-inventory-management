@@ -142,6 +142,7 @@ export default function StaffPage() {
             label: 'Branch',
             key: 'branch',
             options: allBranches.map(b => ({ value: b.name, label: b.name })),
+            searchable: true,
           },
         ]}
         resetKeys={["search", "role", "branch"]}

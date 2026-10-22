@@ -16,7 +16,7 @@ import { ExportConfig } from '@/lib/export'
 import ErrorCard from '@/components/ui/ErrorCard'
 import { useDebounce } from '@/hooks/useDebounce'
 import { getBranches } from '@/lib/branches'
-import { getMerchants } from '@/lib/merchants'
+import { getAllMerchants } from '@/lib/merchants'
 
 function mapApiParcel(p: ApiParcel): Parcel {
   // Build unique merchant list from the merchants array or items
@@ -107,6 +107,7 @@ const ParcelPage = () => {
   const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([])
   const [allMerchants, setAllMerchants] = useState<{ id: string; name: string }[]>([])
   const allBranchesRef = useRef(allBranches)
+  const [merchantsLoading, setMerchantsLoading] = useState(true)
   const allMerchantsRef = useRef(allMerchants)
   allBranchesRef.current = allBranches
   allMerchantsRef.current = allMerchants
@@ -211,9 +212,13 @@ const ParcelPage = () => {
       setAllBranches(branches.map(b => ({ id: b.id, name: b.name })))
     }).catch(() => {})
 
-    getMerchants().then(res => {
-      setAllMerchants((res.data || []).map(m => ({ id: m.id, name: m.name })))
-    }).catch(() => {})
+    // Paged through in full: getMerchants() alone returns only the backend's
+    // first page, so merchants past it could never be picked in the filter.
+    setMerchantsLoading(true)
+    getAllMerchants()
+      .then(ms => setAllMerchants(ms.map(m => ({ id: m.id, name: m.name }))))
+      .catch(() => {})
+      .finally(() => setMerchantsLoading(false))
   }, [])
 
   // Handle parcelId query param (from dashboard click)
@@ -274,11 +279,14 @@ const ParcelPage = () => {
                 label: "Branch",
                 key: "branch",
                 options: allBranches.map(b => ({ value: b.name, label: b.name })),
+                searchable: true,
               },
               {
                 label: "Merchant",
                 key: "merchant",
                 options: allMerchants.map(m => ({ value: m.name, label: m.name })),
+                searchable: true,
+                loading: merchantsLoading,
               },
             ]}
             resetKeys={["search", "branch", "merchant"]}
