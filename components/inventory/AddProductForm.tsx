@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { Syne } from 'next/font/google'
 import { createProduct } from '@/lib/products'
 import { getMerchants, ApiMerchant } from '@/lib/merchants'
+import { useDebounce } from '@/hooks/useDebounce'
 import { getBranches, ApiBranch } from '@/lib/branches'
 
 interface BranchStock {
@@ -38,28 +39,40 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
   const [success, setSuccess] = useState('')
 
   const [merchants, setMerchants] = useState<ApiMerchant[]>([])
+  const [selectedMerchant, setSelectedMerchant] = useState<ApiMerchant | null>(null)
+  const [merchantLoading, setMerchantLoading] = useState(false)
   const [branches, setBranches] = useState<ApiBranch[]>([])
   const [loadingData, setLoadingData] = useState(false)
 
+  const debouncedMerchantSearch = useDebounce(merchantSearch)
+
   useEffect(() => {
-    if (isOpen) {
-      setLoadingData(true)
-      Promise.all([
-        merchants.length === 0 ? getMerchants().then(res => res.data || []) : Promise.resolve(merchants),
-        branches.length === 0 ? getBranches() : Promise.resolve(branches),
-      ])
-        .then(([m, b]) => {
-          setMerchants(m)
-          setBranches(b)
-          // Initialize with first branch if no entries yet
-          if (branchEntries.length === 0 && b.length > 0) {
-            setBranchEntries([{ branchId: b[0].id, quantity: 0, lowStockAlert: 0 }])
-          }
-        })
-        .catch((err) => console.error('Failed to load data:', err))
-        .finally(() => setLoadingData(false))
-    }
+    if (!isOpen) return
+    setLoadingData(true)
+    ;(branches.length === 0 ? getBranches() : Promise.resolve(branches))
+      .then((b) => {
+        setBranches(b)
+        // Initialize with first branch if no entries yet
+        if (branchEntries.length === 0 && b.length > 0) {
+          setBranchEntries([{ branchId: b[0].id, quantity: 0, lowStockAlert: 0 }])
+        }
+      })
+      .catch((err) => console.error('Failed to load branches:', err))
+      .finally(() => setLoadingData(false))
   }, [isOpen])
+
+  // Merchant lookup runs server-side. Filtering a single page in memory would
+  // mean merchants past the first page could never be found.
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    setMerchantLoading(true)
+    getMerchants({ search: debouncedMerchantSearch || undefined })
+      .then((res) => { if (!cancelled) setMerchants(res.data || []) })
+      .catch(() => { if (!cancelled) setMerchants([]) })
+      .finally(() => { if (!cancelled) setMerchantLoading(false) })
+    return () => { cancelled = true }
+  }, [isOpen, debouncedMerchantSearch])
 
   // Close merchant dropdown on outside click
   useEffect(() => {
@@ -73,15 +86,12 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
     return () => document.removeEventListener("mousedown", handleClick)
   }, [showMerchantDropdown])
 
-  const filteredMerchants = merchants.filter(m =>
-    m.name.toLowerCase().includes(merchantSearch.toLowerCase())
-  )
-
-  const selectedMerchantName = merchants.find(m => m.id === merchantId)?.name || ''
+  const selectedMerchantName = selectedMerchant?.name || ''
 
   const resetForm = () => {
     setProductName('')
     setMerchantId('')
+    setSelectedMerchant(null)
     setMerchantSearch('')
     setShowMerchantDropdown(false)
     setDescription('')
@@ -225,7 +235,7 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
               {merchantId && (
                 <button
                   type="button"
-                  onClick={() => { setMerchantId(''); setMerchantSearch(''); }}
+                  onClick={() => { setMerchantId(''); setSelectedMerchant(null); setMerchantSearch(''); }}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   <X size={14} />
@@ -233,15 +243,18 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
               )}
               {showMerchantDropdown && !merchantId && (
                 <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                  {filteredMerchants.length === 0 ? (
+                  {merchantLoading ? (
+                    <div className="px-3 py-2 text-xs text-gray-400">Searching...</div>
+                  ) : merchants.length === 0 ? (
                     <div className="px-3 py-2 text-xs text-gray-400">No merchants found</div>
                   ) : (
-                    filteredMerchants.map((m) => (
+                    merchants.map((m) => (
                       <button
                         key={m.id}
                         type="button"
                         onClick={() => {
                           setMerchantId(m.id)
+                          setSelectedMerchant(m)
                           setMerchantSearch('')
                           setShowMerchantDropdown(false)
                         }}
@@ -276,8 +289,8 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
             />
           </div>
 
-          {/* Description */}
-          <div className="mb-4">
+          {/* Description — desktop only: nobody fills this in from a phone */}
+          <div className="mb-4 hidden sm:block">
             <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
               Description (optional)
             </label>
@@ -378,15 +391,16 @@ export default function AddProductForm({ isOpen, onClose, onSubmit }: AddProduct
             </button>
           )}
 
-          {/* Additional Info */}
-          <div className="relative my-4">
+          {/* Additional Info — hidden with its fields below sm, so the divider
+              is never left heading an empty section */}
+          <div className="relative my-4 hidden sm:block">
             <div className="absolute inset-0 left-0 right-0 h-px bg-gray-200" style={{ top: '50%' }} />
             <div className="relative inline-block bg-white px-2.5 text-xs font-mono text-gray-400 text-transform-uppercase letter-spacing-wider">
               Additional
             </div>
           </div>
 
-          <div className="mb-4">
+          <div className="mb-4 hidden sm:block">
             <label className="block font-mono text-xs text-gray-500 text-transform-uppercase letter-spacing-wider mb-1.5">
               Additional Info (optional)
             </label>

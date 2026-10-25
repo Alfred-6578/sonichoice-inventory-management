@@ -59,6 +59,26 @@ export async function getMerchants(
   return api<MerchantsResponse>(`/merchant${query ? `?${query}` : ""}`);
 }
 
+// Pages through every merchant. Use for dropdowns that must list the whole
+// network — getMerchants() alone returns only the backend's default page.
+export async function getAllMerchants(): Promise<ApiMerchant[]> {
+  const all: ApiMerchant[] = [];
+  let page = 1;
+  let lastPage = 1;
+
+  // Hard cap so a malformed `meta` can never spin forever.
+  while (page <= lastPage && page <= 50) {
+    const res = await getMerchants({ page });
+    const batch = res.data || [];
+    all.push(...batch);
+    lastPage = res.meta?.lastPage ?? 1;
+    if (batch.length === 0) break;
+    page++;
+  }
+
+  return all;
+}
+
 // ── Create ──
 
 export type CreateMerchantPayload = {

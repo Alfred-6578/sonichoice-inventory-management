@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Filters } from "@/types/parcelTypes";
 
 export type FilterConfig = {
@@ -7,7 +7,141 @@ export type FilterConfig = {
   key: string;
   options: { value: string; label: string }[] | null;
   placeholder?: string;
+  /** Render a searchable combobox instead of a native select. Use for long lists. */
+  searchable?: boolean;
+  /** Options still loading — shows a placeholder and blocks interaction. */
+  loading?: boolean;
 };
+
+const TRIGGER_CLASS =
+  "px-2.5 py-[7px] bg-surface-raised border border-border rounded-lg text-[13px] text-ink-muted outline-none cursor-pointer focus:border-border-strong";
+
+/* Combobox used for filters with too many options to scan in a native select. */
+function SearchableFilter({
+  config,
+  value,
+  onChange,
+  disabled,
+}: {
+  config: FilterConfig;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const options = config.options || [];
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? options.filter((o) => o.label.toLowerCase().includes(q))
+    : options;
+  const selectedLabel = options.find((o) => o.value === value)?.label;
+
+  const isDisabled = disabled || !!config.loading;
+
+  const select = (v: string) => {
+    onChange(v);
+    setOpen(false);
+    setQuery("");
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        disabled={isDisabled}
+        onClick={() => setOpen((o) => !o)}
+        className={`${TRIGGER_CLASS} flex items-center gap-1.5 ${
+          isDisabled ? "opacity-50 cursor-not-allowed" : ""
+        } ${value ? "text-ink border-border-strong" : ""}`}
+      >
+        {config.loading ? (
+          <>
+            <span className="w-3 h-3 rounded-full border-[1.5px] border-ink-subtle border-t-transparent animate-spin" />
+            <span>Loading {config.label.toLowerCase()}s...</span>
+          </>
+        ) : (
+          <span>{selectedLabel || `All ${config.label}`}</span>
+        )}
+        <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current shrink-0">
+          <path d="M7 10l5 5 5-5z" />
+        </svg>
+      </button>
+
+      {open && !isDisabled && (
+        <div className="absolute z-30 mt-1 w-56 bg-surface-raised border border-border rounded-lg shadow-lg overflow-hidden">
+          <div className="p-1.5 border-b border-border">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Search ${config.label.toLowerCase()}...`}
+              className="w-full px-2 py-1.5 bg-surface border border-border rounded-md text-[12px] text-ink outline-none focus:border-border-strong placeholder:text-ink-subtle"
+            />
+          </div>
+
+          <div className="max-h-56 overflow-y-auto py-1">
+            <button
+              type="button"
+              onClick={() => select("")}
+              className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-surface transition ${
+                !value ? "text-ink font-medium bg-surface" : "text-ink-muted"
+              }`}
+            >
+              All {config.label}
+            </button>
+
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-[12px] text-ink-subtle">
+                No {config.label.toLowerCase()} matches &quot;{query}&quot;
+              </div>
+            ) : (
+              filtered.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => select(opt.value)}
+                  className={`w-full text-left px-3 py-1.5 text-[12px] truncate hover:bg-surface transition ${
+                    opt.value === value
+                      ? "text-amber-700 font-medium bg-amber/5"
+                      : "text-ink-muted"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))
+            )}
+          </div>
+
+          {options.length > 0 && (
+            <div className="px-3 py-1.5 border-t border-border text-[10px] font-mono text-ink-subtle">
+              {filtered.length} of {options.length}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export type FilterBarProps = {
   total: number;
@@ -110,20 +244,32 @@ export default function FilterBar({
       </div>
 
       {/* Dynamic Filters */}
-      {configs.map((config) => (
-        <select
-          key={config.key}
-          value={filters[config.key] || ""}
-          onChange={(e) => handleChange(config.key, e.target.value)}
-          disabled={disabled}
-          className={`px-2.5 py-[7px] bg-surface-raised border border-border rounded-lg text-[13px] text-ink-muted outline-none cursor-pointer focus:border-border-strong ${disabled ? "opacity-50" : ""}`}
-        >
-          <option value="">All {config.label}</option>
-          {config.options?.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      ))}
+      {configs.map((config) =>
+        config.searchable ? (
+          <SearchableFilter
+            key={config.key}
+            config={config}
+            value={filters[config.key] || ""}
+            onChange={(v) => handleChange(config.key, v)}
+            disabled={disabled}
+          />
+        ) : (
+          <select
+            key={config.key}
+            value={filters[config.key] || ""}
+            onChange={(e) => handleChange(config.key, e.target.value)}
+            disabled={disabled || !!config.loading}
+            className={`${TRIGGER_CLASS} ${disabled || config.loading ? "opacity-50" : ""}`}
+          >
+            <option value="">
+              {config.loading ? `Loading ${config.label.toLowerCase()}s...` : `All ${config.label}`}
+            </option>
+            {config.options?.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )
+      )}
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-1.5">

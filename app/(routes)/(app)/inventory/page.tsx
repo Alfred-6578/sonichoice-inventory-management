@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { InventoryItem } from "@/types/inventory"
+import { InventoryItem, StockRow } from "@/types/inventory"
 import InventoryTable from "@/components/inventory/InventoryTable"
 import FilterBar, { FilterConfig } from "@/components/ui/FilterBar"
 import InventoryDetailPanel from "@/components/inventory/InventoryDetailPanel"
@@ -14,6 +14,7 @@ import { getProducts, getProduct, bulkUploadProducts, ApiProduct } from "@/lib/p
 import BulkUploadModal from "@/components/ui/BulkUploadModal"
 import { TemplateColumn } from "@/lib/bulk-upload"
 import { getBranches } from "@/lib/branches"
+import { getAllMerchants } from "@/lib/merchants"
 import { useDebounce } from "@/hooks/useDebounce"
 import ExportPreviewModal from "@/components/ui/ExportPreviewModal"
 import { ExportConfig } from "@/lib/export"
@@ -37,6 +38,30 @@ function buildStock(p: ApiProduct): Record<string, number> {
   if (p.branch) return { [p.branch.name]: p.quantity ?? 0 }
   if (p.quantity != null) return { Default: p.quantity }
   return {}
+}
+
+// Keeps branchId and lowStockAlert, which buildStock() above has to drop to
+// produce its name-keyed display map. The edit panel needs both.
+function buildStockRows(p: ApiProduct): StockRow[] {
+  if (p.stocks && p.stocks.length > 0) {
+    return p.stocks.map((entry) => ({
+      branchId: entry.branchId || entry.branch?.id || "",
+      branchName: entry.branch?.name || "Unknown",
+      quantity: entry.quantity ?? 0,
+      lowStockAlert: entry.lowStockAlert ?? 0,
+    }))
+  }
+  if (p.branch) {
+    return [
+      {
+        branchId: p.branch.id,
+        branchName: p.branch.name,
+        quantity: p.quantity ?? 0,
+        lowStockAlert: 0,
+      },
+    ]
+  }
+  return []
 }
 
 function calcTotal(p: ApiProduct): number {
@@ -70,6 +95,7 @@ function mapApiProduct(p: ApiProduct): InventoryItem {
       email: p.merchant?.email || "",
     },
     stock: buildStock(p),
+    stockRows: buildStockRows(p),
     totalQty: calcTotal(p),
     lowAlert: 10,
     dateIn: p.dateReceived
@@ -138,19 +164,6 @@ const PRODUCT_TEMPLATE_COLUMNS: TemplateColumn[] = [
   },
 ]
 
-const configs: FilterConfig[] = [
-  {
-    label: "Branch",
-    key: "branch",
-    options: null,
-  },
-  {
-    label: "Merchant",
-    key: "merchant",
-    options: null,
-  },
-]
-
 const InventoryPage = () => {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -187,6 +200,13 @@ const InventoryPage = () => {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [allBranches, setAllBranches] = useState<{ id: string; name: string }[]>([])
+  const [allMerchants, setAllMerchants] = useState<{ id: string; name: string }[]>([])
+  const [merchantsLoading, setMerchantsLoading] = useState(true)
+  const allBranchesRef = useRef(allBranches)
+  const allMerchantsRef = useRef(allMerchants)
+  allBranchesRef.current = allBranches
+  allMerchantsRef.current = allMerchants
   const [filters, setFilters] = useState<InventoryFilters>({
     search: "",
     branch: "",
@@ -199,41 +219,78 @@ const InventoryPage = () => {
     setLoading(true)
     setError("")
     try {
+      // Resolve the selected names to ids so the API does the filtering — doing
+      // it client-side would only ever filter the page already on screen.
+      const branchId = allBranchesRef.current.find((b) => b.name === filters.branch)?.id
+      const merchantId = allMerchantsRef.current.find((m) => m.name === filters.merchant)?.id
+
       const res = await getProducts({
         page,
         search: debouncedSearch || undefined,
+        branchId: branchId || undefined,
+        merchantId: merchantId || undefined,
       })
 
       const raw = res.products || res.data || (Array.isArray(res) ? res : [])
-      console.log("[Fetch Products] raw sample:", (raw as ApiProduct[]).slice(0, 2).map(p => p))
       const mapped = (raw as ApiProduct[]).map(mapApiProduct)
 
       setItems(mapped)
-
 
       if (res.meta) {
         setTotalCount(res.meta.total)
         setTotalPages(res.meta.lastPage)
       }
-
-      // Fetch all branches for filter dropdown (deduplicate by name)
-      const allBranches = await getBranches()
-      const uniqueBranchNames = Array.from(new Set(allBranches.map((b) => b.name)))
-      configs[0].options = uniqueBranchNames.map((name) => ({ value: name, label: name }))
-
-      const merchants = Array.from(new Set(mapped.map((i) => i.merchant.name).filter(Boolean)))
-      configs[1].options = merchants.map((m) => ({ value: m, label: m }))
     } catch (err) {
       console.error("Failed to fetch products:", err)
       setError(err instanceof Error ? err.message : "Failed to load products")
     } finally {
       setLoading(false)
     }
-  }, [page, debouncedSearch])
+  }, [page, debouncedSearch, filters.branch, filters.merchant])
 
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
+
+  // Dropdown sources, loaded once. Merchants are paged through in full so the
+  // filter lists the whole network, not just the backend's first page.
+  useEffect(() => {
+    getBranches()
+      .then((bs) =>
+        setAllBranches(
+          Array.from(
+            new Map(bs.map((b) => [b.name, { id: b.id, name: b.name }])).values()
+          )
+        )
+      )
+      .catch(() => {})
+
+    setMerchantsLoading(true)
+    getAllMerchants()
+      .then((ms) => setAllMerchants(ms.map((m) => ({ id: m.id, name: m.name }))))
+      .catch(() => {})
+      .finally(() => setMerchantsLoading(false))
+  }, [])
+
+  const configs: FilterConfig[] = useMemo(
+    () => [
+      {
+        label: "Branch",
+        key: "branch",
+        options: allBranches.map((b) => ({ value: b.name, label: b.name })),
+        searchable: true,
+      },
+      {
+        label: "Merchant",
+        key: "merchant",
+        options: allMerchants.map((m) => ({ value: m.name, label: m.name })),
+        // The whole merchant network can be long, and paging it takes a moment.
+        searchable: true,
+        loading: merchantsLoading,
+      },
+    ],
+    [allBranches, allMerchants, merchantsLoading]
+  )
 
   // Apply URL query params (from ProductListModal navigation)
   useEffect(() => {
@@ -266,18 +323,9 @@ const InventoryPage = () => {
     }
   }, [loading, items, searchParams])
 
-  // Client-side filtering for category/merchant (API handles search + pagination)
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (filters.branch && !Object.keys(item.stock).includes(filters.branch)) return false
-      if (filters.merchant && item.merchant.name !== filters.merchant) return false
-      return true
-    })
-  }, [items, filters])
-
   const exportConfig: ExportConfig = {
     title: "Inventory Report",
-    subtitle: `${filteredItems.length} products · Page ${page} of ${totalPages}`,
+    subtitle: `${items.length} products · Page ${page} of ${totalPages}`,
     filename: "sonichoice-inventory",
     columns: [
       { header: "SKU", key: "sku", width: 14 },
@@ -286,7 +334,7 @@ const InventoryPage = () => {
       { header: "Total Stock", key: "totalQty", width: 12 },
       { header: "Date In", key: "dateIn", width: 14 },
     ],
-    rows: filteredItems.map((item) => ({
+    rows: items.map((item) => ({
       sku: item.sku,
       name: item.name,
       merchant: item.merchant.name,
@@ -295,9 +343,15 @@ const InventoryPage = () => {
     })),
   }
 
-  // Reset to page 1 when search changes
+  // Any filter change invalidates the current page offset
   const handleFilterChange = (f: InventoryFilters) => {
-    if (f.search !== filters.search) setPage(1)
+    if (
+      f.search !== filters.search ||
+      f.branch !== filters.branch ||
+      f.merchant !== filters.merchant
+    ) {
+      setPage(1)
+    }
     setFilters(f)
   }
 
@@ -307,7 +361,7 @@ const InventoryPage = () => {
         <PageHeader
             headerText={`Inventory · ${totalCount} products`}
             mainText={'Inventory'}
-            subText={`Showing ${filteredItems.length} of ${totalCount} products · Page ${page} of ${totalPages}`}
+            subText={`Showing ${items.length} of ${totalCount} products · Page ${page} of ${totalPages}`}
             loading={loading}
             button1="Export"
             button1Icon={<Download/>}
@@ -322,7 +376,7 @@ const InventoryPage = () => {
         <FilterBar
           filters={filters}
           setFilters={setFilters}
-          total={filteredItems.length}
+          total={items.length}
           onChange={(f) => handleFilterChange(f)}
           filterConfigs={configs}
           resetKeys={["search", "branch", "merchant"]}
@@ -335,7 +389,7 @@ const InventoryPage = () => {
           <ErrorCard message={error} onRetry={fetchProducts} />
         ) : (
           <InventoryTable
-            items={filteredItems}
+            items={items}
             onSelect={handleSelect}
           />
         )}

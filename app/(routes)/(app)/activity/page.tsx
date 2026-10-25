@@ -238,6 +238,7 @@ export default function ActivityLogsPage() {
                   label: 'Branch',
                   key: 'branch',
                   options: allBranches.map((b) => ({ value: b.name, label: b.name })),
+                  searchable: true,
                 },
               ]
             : []

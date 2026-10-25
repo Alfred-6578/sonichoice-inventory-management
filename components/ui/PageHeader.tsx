@@ -48,7 +48,7 @@ export default function PageHeader({
 }) {
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
 
       {/* LEFT */}
       <div className="min-w-0">
@@ -69,41 +69,46 @@ export default function PageHeader({
         }
       </div>
 
-      {/* RIGHT ACTIONS */}
+      {/* RIGHT ACTIONS
+          On a phone these sit on one 44px row rather than stacking full width:
+          a secondary action that has an icon collapses to that icon alone, and
+          the primary takes the space that is left. Labels return at sm. */}
      { button1 || button2 || button3 ?
-        <div className="flex max-xsm:flex-col items-center gap-2">
-
-        {/* MY BRANCH */}
+        <div className="flex items-center gap-2 shrink-0">
 
         {button1 && <Button
             size="sm"
             variant="secondary"
             onClick={onButton1}
-            className="max-lg:w-full"
+            ariaLabel={button1}
+            className={`max-sm:h-11 ${button1Icon ? "max-sm:w-11 max-sm:px-0 max-sm:shrink-0" : "max-sm:flex-1"}`}
         >
             {button1Icon && button1Icon}
-            {button1}
+            <span className={button1Icon ? "max-sm:hidden" : ""}>{button1}</span>
         </Button>
         }
         {button3 && <Button
             size="sm"
             variant="secondary"
             onClick={onButton3}
-            className="max-lg:w-full"
+            ariaLabel={button3}
+            className={`max-sm:h-11 ${button3Icon ? "max-sm:w-11 max-sm:px-0 max-sm:shrink-0" : "max-sm:flex-1"}`}
         >
             {button3Icon && button3Icon}
-            {button3}
+            <span className={button3Icon ? "max-sm:hidden" : ""}>{button3}</span>
         </Button>
         }
         {button2 && <Button
             size="sm"
             onClick={onButton2}
-            className="max-lg:w-full"
+            className="max-sm:h-11 max-sm:flex-1"
         >
-            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-            </svg>
-            {button2}
+            {button2Icon ?? (
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white shrink-0">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+            )}
+            <span className="truncate">{button2}</span>
         </Button>
         }
 

@@ -1,25 +1,35 @@
 "use client";
 
+/**
+ * Send a parcel from this branch to another.
+ *
+ * Items are added one at a time — type part of a product name, tap the right
+ * one, say how many — and collect in a list that can be checked before the
+ * parcel is created. That replaces an earlier preview-of-five plus a modal
+ * stacked on top of this panel, which on a phone meant two overlapping layers
+ * each with its own search.
+ *
+ * Stock comes from the branch's own productStocks, which GET /branches already
+ * embeds, so picking items costs no extra request.
+ */
+
 import { FormDataProps } from "@/types/parcelTypes";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Select from "../ui/Select";
 import { DM_Mono, Syne } from "next/font/google";
-import Tag from "../ui/Tag";
-import { X } from "lucide-react";
+import { AlertTriangle, Check, Plus, Search, X } from "lucide-react";
 import { getBranches, ApiBranch } from "@/lib/branches";
 import { createParcel } from "@/lib/parcels";
 import { getStoredUser } from "@/lib/auth";
+import { buildPlan, normalize, parseDeliveryMessage } from "@/lib/stock-plan";
 
 const dm_mono = DM_Mono({
-    variable:"--font-dm_mono",
-    subsets:["latin"],
-    weight: ["300","400","500"]
-})
+  variable: "--font-dm_mono",
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+});
 
-const syne = Syne({
-    variable: "--font-syne",
-    subsets:["latin"]
-})
+const syne = Syne({ variable: "--font-syne", subsets: ["latin"] });
 
 type BranchProduct = {
   id: string;
@@ -27,130 +37,209 @@ type BranchProduct = {
   name: string;
   description: string;
   maxQuantity: number;
-  merchantId: string;
 };
 
-const PREVIEW_LIMIT = 5;
+type Item = { product: BranchProduct; quantity: number };
 
-export default function ParcelFormPanel({
-  isOpen,
-  onClose,
-  onBulkTransfer,
-}: FormDataProps) {
+/** A pasted line that could not be turned into an item. */
+type Unplaced = { text: string; quantity: number; note?: string };
+
+const LABEL = "text-[11px] uppercase tracking-wider text-ink-subtle";
+
+/** productStocks -> the pickable products for a branch, in stock only. */
+function productsOf(branch: ApiBranch | undefined): BranchProduct[] {
+  if (!branch?.productStocks) return [];
+  return branch.productStocks
+    .filter((s) => s.quantity > 0)
+    .map((s) => ({
+      id: s.productId,
+      trackingId: s.product?.trackingId || s.productId.slice(0, 8),
+      name: s.product?.name || "Product",
+      description: (s.product?.description as string) ?? "",
+      maxQuantity: s.quantity,
+    }));
+}
+
+export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
   const [branches, setBranches] = useState<ApiBranch[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(true);
   const [fromBranchId, setFromBranchId] = useState("");
   const [toBranchId, setToBranchId] = useState("");
-  const [size, setSize] = useState<string>("");
+  const [size, setSize] = useState("");
   const [additionalInfo, setAdditionalInfo] = useState("");
-  const [products, setProducts] = useState<BranchProduct[]>([]);
-  const [selected, setSelected] = useState<Map<string, number>>(new Map());
-  const [showFullModal, setShowFullModal] = useState(false);
-  const [modalSearch, setModalSearch] = useState("");
+
+  const [items, setItems] = useState<Item[]>([]);
+  const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<"type" | "paste">("type");
+  const [pasteText, setPasteText] = useState("");
+  const [unplaced, setUnplaced] = useState<Unplaced[]>([]);
+  const [clamped, setClamped] = useState(0);
+  const [picked, setPicked] = useState<BranchProduct | null>(null);
+  const [qty, setQty] = useState("");
+  const [open, setOpen] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [didCreate, setDidCreate] = useState(false);
 
-  const deriveProducts = (branchData: ApiBranch[]) => {
-    const branch = branchData.find((b) => b.id === fromBranchId);
-    if (!branch || !branch.productStocks) {
-      setProducts([]);
-      return;
-    }
-    setProducts(
-      branch.productStocks
-        .filter((s) => s.quantity > 0)
-        .map((s) => ({
-          id: s.productId,
-          trackingId: s.product?.trackingId || s.productId.slice(0, 8),
-          name: s.product?.name || "Product",
-          description: (s.product?.description as string) ?? "",
-          maxQuantity: s.quantity,
-          merchantId: (s.product?.merchantId as string) || "",
-        }))
-    );
-  };
+  const qtyRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // Fetch branches on mount and set fromBranch to user's branch
   useEffect(() => {
-    const user = getStoredUser();
-    const userBranchId = user?.branchId || "";
+    const mine = getStoredUser()?.branchId || "";
+    if (mine) setFromBranchId(mine);
 
-    getBranches().then((data) => {
-      setBranches(data);
-      if (userBranchId) {
-        setFromBranchId(userBranchId);
-        // Derive products immediately using fetched data (not stale state)
-        const branch = data.find((b) => b.id === userBranchId);
-        if (branch?.productStocks) {
-          setProducts(
-            branch.productStocks
-              .filter((s) => s.quantity > 0)
-              .map((s) => ({
-                id: s.productId,
-                trackingId: s.product?.trackingId || s.productId.slice(0, 8),
-                name: s.product?.name || "Product",
-                description: (s.product?.description as string) ?? "",
-                maxQuantity: s.quantity,
-                merchantId: (s.product?.merchantId as string) || "",
-              }))
-          );
-        }
-      }
-    }).catch(() => {});
+    getBranches()
+      .then(setBranches)
+      .catch(() => {})
+      .finally(() => setBranchesLoading(false));
   }, []);
 
-  // Derive products when fromBranchId changes (after initial load)
-  useEffect(() => {
-    if (!fromBranchId || branches.length === 0) return;
-    setSelected(new Map());
-    deriveProducts(branches);
-  }, [fromBranchId, branches]);
+  const fromBranch = branches.find((b) => b.id === fromBranchId);
+  const products = useMemo(() => productsOf(fromBranch), [fromBranch]);
 
-  const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
-  const destinationOptions = branchOptions.filter((b) => b.value !== fromBranchId);
+  const destinations = branches
+    .filter((b) => b.id !== fromBranchId)
+    .map((b) => ({ value: b.id, label: b.name }));
 
-  const toggleProduct = (id: string, maxQty: number) => {
-    setSelected((prev) => {
-      const next = new Map(prev);
-      if (next.has(id)) next.delete(id);
-      else next.set(id, maxQty);
-      return next;
-    });
+  /* ─────────── picking ─────────── */
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return products
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.trackingId.toLowerCase().includes(q)
+      )
+      .sort((a, b) => {
+        const as = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+        const bs = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+        return as - bs || a.name.localeCompare(b.name);
+      })
+      .slice(0, 8);
+  }, [query, products]);
+
+  /** How much of a product is still free to add, given what is already listed. */
+  const remainingFor = (p: BranchProduct) =>
+    p.maxQuantity - (items.find((i) => i.product.id === p.id)?.quantity ?? 0);
+
+  const pick = (p: BranchProduct) => {
+    setPicked(p);
+    setOpen(false);
+    setQuery("");
+    setQty("");
+    requestAnimationFrame(() => qtyRef.current?.focus());
   };
 
-  const setQuantity = (id: string, qty: number) => {
-    setSelected((prev) => {
-      const next = new Map(prev);
-      next.set(id, qty);
+  const commit = () => {
+    const n = parseInt(qty, 10);
+    if (!picked || !Number.isFinite(n) || n <= 0) return;
+
+    // Never let a parcel promise more than the branch is holding.
+    const capped = Math.min(n, remainingFor(picked));
+    if (capped <= 0) return;
+
+    setItems((cur) => {
+      const at = cur.findIndex((i) => i.product.id === picked.id);
+      if (at === -1) return [...cur, { product: picked, quantity: capped }];
+      const next = [...cur];
+      next[at] = { ...next[at], quantity: next[at].quantity + capped };
       return next;
     });
+
+    setPicked(null);
+    setQty("");
+    requestAnimationFrame(() => searchRef.current?.focus());
   };
 
-  const toggleAll = () => {
-    if (selected.size === products.length) {
-      setSelected(new Map());
-    } else {
-      const next = new Map<string, number>();
-      products.forEach((p) => next.set(p.id, selected.get(p.id) ?? p.maxQuantity));
-      setSelected(next);
+  const removeItem = (id: string) =>
+    setItems((cur) => cur.filter((i) => i.product.id !== id));
+
+  /**
+   * Reads a pasted delivery message and turns its lines into parcel items.
+   * The branch's stock is the ceiling, so a line asking for more than is free
+   * is added at what is available and counted as reduced; a line that matches
+   * nothing, or whose product is already fully committed, is handed back.
+   *
+   * Matching runs through buildPlan so it is the same logic the delivery screen
+   * uses. Merchant suffixes like "(Yusmine)" cannot disambiguate here, because
+   * productStocks carries merchantId but not the merchant's name — two products
+   * sharing a name come back as ambiguous and are listed for a manual pick.
+   */
+  const absorbPaste = () => {
+    if (!pasteText.trim() || !fromBranchId) return;
+
+    const label = fromBranch?.name || "branch";
+    const parse = parseDeliveryMessage(pasteText);
+    const plan = buildPlan(
+      parse.rows.map((r) => ({ ...r, branch: label })),
+      { [normalize(label)]: fromBranchId },
+      products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        merchantName: "",
+        trackingId: p.trackingId,
+        stocks: [
+          { branchId: fromBranchId, quantity: p.maxQuantity, lowStockAlert: 0 },
+        ],
+      })),
+      "deduct"
+    );
+
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const next = [...items];
+    const notPlaced: Unplaced[] = [];
+    let reduced = 0;
+
+    for (const o of plan.outcomes) {
+      const want = Number(o.row.rawQuantity);
+      const product = o.productId ? byId.get(o.productId) : undefined;
+
+      if (o.status !== "update" || !product || !Number.isFinite(want) || want <= 0) {
+        notPlaced.push({ text: o.row.name, quantity: Number.isFinite(want) ? want : 0 });
+        continue;
+      }
+
+      const at = next.findIndex((i) => i.product.id === product.id);
+      const already = at === -1 ? 0 : next[at].quantity;
+      const free = product.maxQuantity - already;
+
+      if (free <= 0) {
+        notPlaced.push({
+          text: o.row.name,
+          quantity: want,
+          note: "all of this product is already in the parcel",
+        });
+        continue;
+      }
+
+      const add = Math.min(want, free);
+      if (add < want) reduced++;
+      if (at === -1) next.push({ product, quantity: add });
+      else next[at] = { ...next[at], quantity: already + add };
     }
+
+    for (const u of parse.unparsed) notPlaced.push({ text: u.text, quantity: 0 });
+
+    setItems(next);
+    setUnplaced(notPlaced);
+    setClamped(reduced);
+    setPasteText("");
+    setMode("type");
   };
 
-  // Derive merchantId from the first selected product
-  const derivedMerchantId = (() => {
-    const firstSelectedId = selected.keys().next().value;
-    if (!firstSelectedId) return "";
-    return products.find((p) => p.id === firstSelectedId)?.merchantId || "";
-  })();
+  /* ─────────── submit ─────────── */
 
   const handleTransfer = async () => {
-    if (selected.size === 0 || !toBranchId || !fromBranchId) {
-      setError("Please select branches and at least one product.");
+    if (!fromBranchId || !toBranchId) {
+      setError("Choose where the parcel is going.");
       return;
     }
-    if (!derivedMerchantId) {
-      setError("Could not determine merchant from selected products.");
+    if (items.length === 0) {
+      setError("Add at least one item to the parcel.");
       return;
     }
 
@@ -159,25 +248,24 @@ export default function ParcelFormPanel({
     setSubmitting(true);
 
     try {
-      const items = Array.from(selected.entries()).map(([productId, quantity]) => ({
-        productId,
-        quantity,
-      }));
-
-      const payload = {
-        // merchantId: derivedMerchantId,
+      // No merchantId: the API derives it from the items, so a parcel may carry
+      // products from several merchants.
+      const result = await createParcel({
         fromBranchId,
         toBranchId,
         size: (size as "SMALL" | "MEDIUM" | "LARGE" | "EXTRA_LARGE") || undefined,
         additionalInfo: additionalInfo || undefined,
-        items,
-      };
-      console.log("Create parcel payload:", payload);
-      const result = await createParcel(payload);
+        items: items.map((i) => ({
+          productId: i.product.id,
+          quantity: i.quantity,
+        })),
+      });
 
-      setSuccess(`Parcel ${result.trackingNumber} created successfully!`);
+      setSuccess(`Parcel ${result.trackingNumber} created`);
       setDidCreate(true);
-      setSelected(new Map());
+      setItems([]);
+      setUnplaced([]);
+      setClamped(0);
       setToBranchId("");
       setSize("");
       setAdditionalInfo("");
@@ -190,406 +278,413 @@ export default function ParcelFormPanel({
 
   const resetAndClose = () => {
     onClose(didCreate);
-    setSelected(new Map());
+    setItems([]);
+    setUnplaced([]);
+    setClamped(0);
+    setPasteText("");
     setToBranchId("");
     setSize("");
     setAdditionalInfo("");
-    setShowFullModal(false);
-    setModalSearch("");
+    setPicked(null);
+    setQuery("");
+    setQty("");
     setError("");
     setSuccess("");
     setDidCreate(false);
   };
 
-  const selectedCount = selected.size;
-  const totalTransferQty = Array.from(selected.values()).reduce((s, q) => s + q, 0);
-
-  // Filtered products for modal search
-  const modalProducts = modalSearch
-    ? products.filter(
-        (p) =>
-          p.name.toLowerCase().includes(modalSearch.toLowerCase()) ||
-          p.trackingId.toLowerCase().includes(modalSearch.toLowerCase())
-      )
-    : products;
+  const totalUnits = items.reduce((s, i) => s + i.quantity, 0);
+  const canSend = !!toBranchId && items.length > 0 && !submitting;
 
   return (
-    <>
-      <div
-        className={`fixed top-0 right-0 bottom-0 z-[60] w-full sm:max-w-[460px]
+    <div
+      className={`fixed top-0 right-0 bottom-0 z-[60] w-full sm:max-w-[460px]
         bg-surface-raised border-l border-border flex flex-col
         transition-transform duration-300
-        ${isOpen ? "translate-x-0" : "translate-x-full"}
-      `}
-      >
-        {/* HEADER */}
-        <div className="p-4 border-b border-border flex items-center gap-3">
+        ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+    >
+      {/* HEADER */}
+      <div className="px-4 py-3.5 border-b border-border flex items-center gap-3 shrink-0">
+        <div>
+          <div className={`${dm_mono.className} ${LABEL} mb-0.5`}>Parcels</div>
+          <div className={`${syne.className} text-[19px] font-bold text-ink leading-tight`}>
+            Send a parcel
+          </div>
+        </div>
+        <button
+          onClick={resetAndClose}
+          className="ml-auto w-10 h-10 -mr-2 flex items-center justify-center rounded-lg text-ink-subtle active:bg-surface"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* BODY */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
+        {success && (
+          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-delivered-bg border border-delivered-border">
+            <Check className="w-4 h-4 text-delivered shrink-0 mt-0.5" />
+            <span className="text-[14px] text-ink">{success}</span>
+          </div>
+        )}
+        {error && (
+          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-cancelled-bg border border-cancelled-border">
+            <AlertTriangle className="w-4 h-4 text-cancelled shrink-0 mt-0.5" />
+            <span className="text-[14px] text-ink">{error}</span>
+          </div>
+        )}
+
+        {/* ROUTE */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <div>
-            <div className={`text-[11px] font-mono text-ink-subtle uppercase tracking-wider mb-1 ${dm_mono.className}`}>
-              Parcels
-            </div>
-            <div className={`text-lg font-bold text-ink ${syne.className}`}>
-              Log Parcels
+            <div className={`${dm_mono.className} ${LABEL} mb-1.5`}>From</div>
+            <div className="h-12 px-3.5 flex items-center bg-surface border border-border rounded-xl text-[15px] text-ink-muted truncate">
+              {branchesLoading ? "Loading..." : fromBranch?.name || "Your branch"}
             </div>
           </div>
-          <button
-            onClick={resetAndClose}
-            className="ml-auto w-7 h-7 flex items-center justify-center rounded-md text-ink-subtle hover:bg-surface"
-          >
-            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-            </svg>
-          </button>
+          <div className="h-12 flex items-center text-ink-subtle">→</div>
+          <div>
+            <div className={`${dm_mono.className} ${LABEL} mb-1.5`}>To</div>
+            <Select
+              id="transfer-to"
+              size="sm"
+              value={toBranchId}
+              onChange={(e) => setToBranchId(e.target.value)}
+              options={destinations}
+              placeholder={branchesLoading ? "Loading..." : "Choose"}
+            />
+          </div>
         </div>
 
-        {/* BODY */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {success && (
-            <div className="px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
-              {success}
+        {/* ADD AN ITEM */}
+        {!picked ? (
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <span className={`${dm_mono.className} ${LABEL}`}>Add item</span>
+              <button
+                onClick={() => setMode(mode === "type" ? "paste" : "type")}
+                className="text-[12.5px] font-medium text-amber-hover"
+              >
+                {mode === "type" ? "Paste a message" : "Type items"}
+              </button>
             </div>
-          )}
-          {error && (
-            <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-              {error}
-            </div>
-          )}
 
-          {/* BRANCHES */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="From Branch">
-              <div className="w-full px-4 py-2 border border-border rounded-lg bg-surface text-sm text-ink-muted mt-1">
-                {branches.find(b => b.id === fromBranchId)?.name || "Loading..."}
+            {mode === "paste" ? (
+              <div className="border border-border rounded-xl overflow-hidden">
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={7}
+                  disabled={products.length === 0}
+                  // 16px keeps iOS Safari from zooming the page on focus.
+                  className={`${dm_mono.className} w-full px-4 py-3.5 bg-transparent outline-none text-base text-ink placeholder:text-ink-subtle leading-relaxed resize-y`}
+                  placeholder={"4 Kreain gel\n7 Moadop eye care tea\n1 Pressure washer"}
+                />
+                <button
+                  onClick={absorbPaste}
+                  disabled={!pasteText.trim() || products.length === 0}
+                  className="w-full h-12 border-t border-border text-[15px] font-semibold text-ink disabled:text-ink-subtle active:bg-surface"
+                >
+                  Add these to the parcel
+                </button>
               </div>
-            </Field>
-
-            <Field label="To Branch">
-              <Select
-                id="transfer-to"
-                size="sm"
-                value={toBranchId}
-                onChange={(e) => setToBranchId(e.target.value)}
-                options={destinationOptions}
-                placeholder="— Select —"
+            ) : (
+            <div className="relative">
+              <Search className="w-4.5 h-4.5 text-ink-subtle absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setOpen(true);
+                }}
+                onFocus={() => setOpen(true)}
+                disabled={products.length === 0}
+                // 16px keeps iOS Safari from zooming the page on focus.
+                className="w-full h-14 pl-11 pr-11 bg-surface-raised border border-border rounded-xl text-base text-ink outline-none focus:border-amber focus:ring-2 focus:ring-amber-border placeholder:text-ink-subtle disabled:opacity-60"
+                placeholder={
+                  products.length > 0
+                    ? "Type a product name"
+                    : branchesLoading
+                      ? "Loading stock..."
+                      : "Nothing in stock at this branch"
+                }
               />
-            </Field>
+              {query && (
+                <button
+                  onClick={() => {
+                    setQuery("");
+                    searchRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg flex items-center justify-center text-ink-subtle active:bg-surface"
+                  aria-label="Clear"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* picker: full width, so it can never run off a phone screen */}
+              {open && query.trim() !== "" && (
+                <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 bg-surface-raised border border-border rounded-xl shadow-[0_12px_28px_-8px_rgba(17,24,39,0.18)] overflow-hidden">
+                  {matches.length === 0 ? (
+                    <div className="px-4 py-5 text-center">
+                      <p className="text-[14px] text-ink">No match in stock here</p>
+                      <p className="text-[12.5px] text-ink-subtle mt-0.5">
+                        Nothing available is called &ldquo;{query.trim()}&rdquo;
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="max-h-[45vh] overflow-y-auto overscroll-contain divide-y divide-border">
+                      {matches.map((p) => {
+                        const left = remainingFor(p);
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => left > 0 && pick(p)}
+                            disabled={left <= 0}
+                            className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-surface disabled:opacity-50"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[15px] text-ink font-medium truncate">
+                                {p.name}
+                              </div>
+                              <div className={`${dm_mono.className} text-[12px] text-ink-subtle truncate`}>
+                                {p.trackingId}
+                              </div>
+                            </div>
+                            <span
+                              className={`${dm_mono.className} shrink-0 px-2 py-1 rounded-md border text-[12px] ${
+                                left <= 0
+                                  ? "bg-cancelled-bg text-cancelled border-cancelled-border"
+                                  : "bg-surface text-ink-muted border-border"
+                              }`}
+                            >
+                              {left <= 0 ? "all added" : `${left} free`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            )}
+          </div>
+        ) : (
+          /* quantity step */
+          <div>
+            <div className={`${dm_mono.className} ${LABEL} mb-2`}>How many?</div>
+            <div className="rounded-xl bg-amber-muted border border-amber-border overflow-hidden">
+              <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[16.5px] text-ink font-semibold leading-snug">
+                    {picked.name}
+                  </div>
+                  <div className={`${dm_mono.className} text-[12px] text-ink-muted mt-0.5`}>
+                    {picked.trackingId} · {remainingFor(picked)} free
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setPicked(null);
+                    setQty("");
+                  }}
+                  className="w-10 h-10 -mt-2 -mr-2 shrink-0 rounded-lg flex items-center justify-center text-ink-subtle active:bg-amber-border/30"
+                  aria-label="Cancel"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex items-stretch gap-2 px-4 pb-4">
+                <input
+                  ref={qtyRef}
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value.replace(/[^0-9]/g, ""))}
+                  onKeyDown={(e) => e.key === "Enter" && commit()}
+                  type="text"
+                  inputMode="numeric"
+                  className={`${dm_mono.className} w-24 h-12 px-3 bg-surface-raised border border-border-strong rounded-xl text-center text-[22px] font-medium text-ink outline-none focus:border-amber focus:ring-2 focus:ring-amber-border`}
+                  placeholder="0"
+                />
+                <button
+                  onClick={commit}
+                  disabled={!qty || parseInt(qty, 10) <= 0}
+                  className={`${syne.className} flex-1 h-12 rounded-xl bg-ink text-white text-[15px] font-bold flex items-center justify-center gap-1.5 disabled:bg-border-strong disabled:text-ink-subtle active:opacity-90`}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add to parcel
+                </button>
+              </div>
+
+              {qty && parseInt(qty, 10) > remainingFor(picked) && (
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-surface-raised border-t border-amber-border">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-hover shrink-0" />
+                  <span className="text-[12.5px] text-ink">
+                    Only{" "}
+                    <span className={dm_mono.className}>{remainingFor(picked)}</span> free —
+                    that is what will be added
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* LINES THE PASTE COULD NOT PLACE */}
+        {unplaced.length > 0 && (
+          <div className="border border-amber-border rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-muted border-b border-amber-border">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-hover shrink-0" />
+              <span className="text-[12.5px] font-medium text-ink">
+                Not added
+                <span className={`${dm_mono.className} text-ink-muted`}>
+                  {" "}· {unplaced.length}
+                </span>
+              </span>
+              <button
+                onClick={() => setUnplaced([])}
+                className="ml-auto text-[12.5px] font-medium text-ink-subtle"
+              >
+                Dismiss
+              </button>
+            </div>
+            {/* Capped with its own scroll: this is secondary to the item list,
+                so a long one must not push the parcel out of reach. */}
+            <div className="max-h-[38vh] overflow-y-auto overscroll-contain divide-y divide-border">
+              {unplaced.map((u, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14.5px] text-ink truncate">{u.text}</div>
+                    <div className={`${dm_mono.className} text-[12px] text-ink-subtle truncate`}>
+                      {u.note || (u.quantity > 0 ? `${u.quantity} units` : "could not be read")}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMode("type");
+                      setQuery(u.text);
+                      setOpen(true);
+                      setUnplaced((cur) => cur.filter((_, j) => j !== i));
+                      requestAnimationFrame(() => searchRef.current?.focus());
+                    }}
+                    className="h-10 px-3.5 shrink-0 rounded-lg border border-border text-[12.5px] font-medium text-ink active:bg-surface"
+                  >
+                    Find
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ITEMS */}
+        {items.length > 0 && (
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <span className={`${dm_mono.className} ${LABEL}`}>In this parcel</span>
+              <span className={`${dm_mono.className} text-[12px] text-ink-subtle`}>
+                {items.length} product{items.length === 1 ? "" : "s"} · {totalUnits} units
+              </span>
+            </div>
+            <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+              {items.map((i) => (
+                <div key={i.product.id} className="flex items-center gap-3 pl-4 pr-2 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] text-ink font-medium truncate">
+                      {i.product.name}
+                    </div>
+                    <div className={`${dm_mono.className} text-[12px] text-ink-subtle`}>
+                      {i.product.trackingId} · {i.product.maxQuantity} in stock
+                    </div>
+                  </div>
+                  <div className={`${dm_mono.className} text-[19px] font-medium text-ink shrink-0`}>
+                    ×{i.quantity}
+                  </div>
+                  <button
+                    onClick={() => removeItem(i.product.id)}
+                    className="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center text-ink-subtle active:bg-surface"
+                    aria-label={`Remove ${i.product.name}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {clamped > 0 && (
+              <p className="text-[12.5px] text-amber-hover mt-2">
+                {clamped} line{clamped === 1 ? "" : "s"} reduced to the stock available here.
+              </p>
+            )}
+          </div>
+        )}
+
+        {items.length === 0 && !picked && (
+          <div className="rounded-xl border border-dashed border-border-strong px-5 py-6 text-center">
+            <p className="text-[14.5px] text-ink font-medium">No items yet</p>
+            <p className="text-[13px] text-ink-muted mt-0.5">
+              Search a product above, then say how many are going.
+            </p>
+          </div>
+        )}
+
+        {/* OPTIONAL DETAIL */}
+        <div className="flex flex-col gap-3 pt-1">
+          <div>
+            <div className={`${dm_mono.className} ${LABEL} mb-1.5`}>Size (optional)</div>
+            <Select
+              id="parcel-size"
+              size="sm"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              options={[
+                { value: "SMALL", label: "Small" },
+                { value: "MEDIUM", label: "Medium" },
+                { value: "LARGE", label: "Large" },
+                { value: "EXTRA_LARGE", label: "Extra Large" },
+              ]}
+              placeholder="— Select —"
+            />
           </div>
 
-          {/* SIZE + ADDITIONAL INFO */}
-          <div className="grid grid-cols-1 gap-3">
-            <Field label="Size (optional)">
-              <Select
-                id="parcel-size"
-                size="sm"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                options={[
-                  { value: "SMALL", label: "Small" },
-                  { value: "MEDIUM", label: "Medium" },
-                  { value: "LARGE", label: "Large" },
-                  { value: "EXTRA_LARGE", label: "Extra Large" },
-                ]}
-                placeholder="— Select —"
-              />
-            </Field>
-          </div>
-
-          <Field label="Additional Info (optional)">
+          {/* Note is reference detail: desktop only, like the product fields. */}
+          <div className="hidden sm:block">
+            <div className={`${dm_mono.className} ${LABEL} mb-1.5`}>Note (optional)</div>
             <textarea
               value={additionalInfo}
               onChange={(e) => setAdditionalInfo(e.target.value)}
-              placeholder="e.g. Handle with care..."
               rows={2}
-              className="input text-ink text-sm placeholder:text-ink-muted/70 placeholder:text-sm px-4 py-2 border border-border w-full rounded-lg outline-amber resize-none"
+              className="w-full px-3.5 py-2.5 bg-surface-raised border border-border rounded-xl text-[14px] text-ink outline-none focus:border-amber focus:ring-2 focus:ring-amber-border resize-none placeholder:text-ink-subtle"
+              placeholder="Anything the receiving branch should know"
             />
-          </Field>
-
-          <Divider label="Products at branch" />
-
-          {/* PRODUCT SELECTION LIST (LIMITED) */}
-          {!fromBranchId ? (
-            <div className="text-center py-8 text-ink-muted text-sm">
-              Select a source branch to see available products
-            </div>
-          ) : products.length === 0 ? (
-            <div className="text-center py-8 text-ink-muted text-sm">
-              No products at this branch
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {products.slice(0, PREVIEW_LIMIT).map((p) => (
-                <ProductCard
-                  key={p.id}
-                  product={p}
-                  isSelected={selected.has(p.id)}
-                  quantity={selected.get(p.id) ?? p.maxQuantity}
-                  onToggle={() => toggleProduct(p.id, p.maxQuantity)}
-                  onQuantityChange={(qty) => setQuantity(p.id, qty)}
-                />
-              ))}
-
-              {products.length > PREVIEW_LIMIT && (
-                <button
-                  onClick={() => setShowFullModal(true)}
-                  className="w-full py-2.5 text-xs font-medium text-amber-600 hover:text-amber-700 border border-border rounded-lg hover:bg-surface transition"
-                >
-                  View all {products.length} products
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Selected summary */}
-          {selectedCount > 0 && (
-            <div className="bg-amber/5 border border-amber rounded-lg px-3 py-2 text-xs">
-              <span className="font-bold text-amber-700">{selectedCount} product{selectedCount > 1 ? "s" : ""}</span>
-              <span className="text-ink-muted"> selected · {totalTransferQty} total units</span>
-            </div>
-          )}
-        </div>
-
-        {/* FOOTER */}
-        <div className="p-4 border-t border-border flex gap-2">
-          <button
-            onClick={resetAndClose}
-            className="px-4 py-2 border border-border rounded-lg text-ink-muted hover:bg-surface"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={handleTransfer}
-            disabled={selectedCount === 0 || !toBranchId || submitting}
-            className={`flex-1 px-4 py-2 rounded-lg font-bold transition-colors ${
-              selectedCount > 0 && toBranchId && !submitting
-                ? "bg-ink text-white"
-                : "bg-ink/30 text-white/60 cursor-not-allowed"
-            }`}
-          >
-            {submitting ? "Creating parcel..." : `Transfer ${selectedCount > 0 ? `${selectedCount} product${selectedCount > 1 ? "s" : ""}` : "products"}`}
-          </button>
+          </div>
         </div>
       </div>
 
-      {/* ═══════════ FULL PRODUCT MODAL ═══════════ */}
-      {showFullModal && (
-        <>
-          <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-[70]" onClick={() => setShowFullModal(false)} />
-          <div className="fixed inset-0 z-[71] flex items-center justify-center p-4">
-            <div
-              className="bg-white rounded-xl border border-border shadow-2xl flex flex-col w-full sm:max-w-[90%] xl:max-w-[80%] sm:max-h-[90vh] max-h-[95vh]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-border flex max-sm:flex-col sm:items-center gap-3 shrink-0">
-                <div className="flex-1">
-                  <div className={`text-lg font-bold text-ink ${syne.className}`}>
-                    Select Products to Transfer
-                  </div>
-                  <div className="text-xs text-ink-subtle mt-0.5">
-                    {products.length} products at {branches.find(b => b.id === fromBranchId)?.name}
-                    {selectedCount > 0 && ` · ${selectedCount} selected · ${totalTransferQty} units`}
-                  </div>
-                </div>
-
-                {/* Search */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg w-56  max-sm:w-full focus-within:border-border-strong">
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-ink-subtle shrink-0">
-                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search products..."
-                    value={modalSearch}
-                    onChange={(e) => setModalSearch(e.target.value)}
-                    className="bg-transparent outline-none w-full text-xs text-ink placeholder:text-ink-subtle"
-                  />
-                </div>
-
-                <div className="flex gap-4">
-                {/* Select all */}
-                <button
-                  onClick={toggleAll}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors w-full ${
-                    selected.size === products.length
-                      ? "bg-amber/10 border-amber text-amber-700"
-                      : "border-border text-ink-muted hover:bg-surface"
-                  }`}
-                >
-                  {selected.size === products.length ? "Deselect all" : "Select all"}
-                </button>
-
-                <button
-                  onClick={() => setShowFullModal(false)}
-                  className="w-8 h-8 border rounded-lg flex items-center justify-center text-ink-subtle hover:bg-surface transition shrink-0"
-                >
-                  <X size={18} /> 
-                  {/* <p className="sm:hidden">Close</p> */}
-                </button>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div className="flex-1 overflow-y-auto p-6">
-                {modalProducts.length === 0 ? (
-                  <div className="text-center py-10 text-ink-subtle text-sm">
-                    {modalSearch ? "No products match your search" : "No products found"}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {modalProducts.map((p) => (
-                      <div
-                        key={p.id}
-                        className={`border rounded-lg overflow-hidden transition ${
-                          selected.has(p.id) ? "border-amber bg-amber/5" : "border-border hover:border-border-strong"
-                        }`}
-                      >
-                        {/* Top: checkbox + info */}
-                        <label className="flex items-start gap-2.5 px-3.5 py-2.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(p.id)}
-                            onChange={() => toggleProduct(p.id, p.maxQuantity)}
-                            className="mt-1 accent-amber-600 w-4 h-4 shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[13px] font-medium text-ink truncate">{p.name}</div>
-                            {p.description && (
-                              <div className="text-[11px] text-ink-subtle truncate mt-0.5">{p.description}</div>
-                            )}
-                            <span className="font-mono text-[9px] text-ink-subtle">{p.trackingId}</span>
-                          </div>
-                        </label>
-
-                        {/* Bottom: quantity control */}
-                        <div className="border-t border-border bg-gray-50/50 px-3.5 py-2 flex items-center justify-between">
-                          <span className="text-[11px] text-ink-muted">
-                            Available: <span className="font-mono font-medium">{p.maxQuantity}</span>
-                          </span>
-
-                          {selected.has(p.id) && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-ink-muted">Qty:</span>
-                              <input
-                                type="number"
-                                min={1}
-                                max={p.maxQuantity}
-                                value={selected.get(p.id) ?? p.maxQuantity}
-                                onChange={(e) => {
-                                  const val = Math.min(Math.max(1, parseInt(e.target.value) || 1), p.maxQuantity);
-                                  setQuantity(p.id, val);
-                                }}
-                                className="w-14 px-2 py-1 border border-border rounded text-xs font-mono text-ink text-center outline-none focus:border-amber"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
-                <span className="text-xs text-ink-subtle">
-                  {selectedCount} of {products.length} selected · {totalTransferQty} units
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowFullModal(false)}
-                    className="px-4 py-1.5 text-xs border border-border rounded-lg text-ink-muted hover:bg-surface transition"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            </div>
+      {/* FOOTER */}
+      <div
+        className="px-4 pt-3 border-t border-border shrink-0 bg-surface-raised"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      >
+        {items.length > 0 && (
+          <div className="flex items-baseline justify-between mb-2">
+            <span className={`${dm_mono.className} text-[12px] text-ink-muted truncate`}>
+              {totalUnits} units → {branches.find((b) => b.id === toBranchId)?.name || "?"}
+            </span>
           </div>
-        </>
-      )}
-    </>
-  );
-}
-
-/* ── Product Card (for preview list) ── */
-function ProductCard({
-  product,
-  isSelected,
-  quantity,
-  onToggle,
-  onQuantityChange,
-}: {
-  product: BranchProduct;
-  isSelected: boolean;
-  quantity: number;
-  onToggle: () => void;
-  onQuantityChange: (qty: number) => void;
-}) {
-  return (
-    <div className={`rounded-lg border overflow-hidden transition ${isSelected ? "border-amber bg-amber/5" : "border-border hover:bg-surface"}`}>
-      <label className="flex items-start gap-3 p-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={onToggle}
-          className="mt-1 accent-amber-600 w-4 h-4"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Tag label={product.trackingId} />
-          </div>
-          <div className="text-sm font-medium text-ink truncate">{product.name}</div>
-          {product.description && (
-            <div className="text-xs text-ink-muted mt-0.5 truncate">{product.description}</div>
-          )}
-          <div className="text-xs text-ink-subtle mt-0.5 font-mono">
-            {product.maxQuantity} units available
-          </div>
-        </div>
-      </label>
-
-      {isSelected && (
-        <div className="border-t border-border bg-gray-50/50 px-3 py-2 flex items-center justify-between">
-          <span className="text-[10px] text-ink-muted">Transfer quantity</span>
-          <input
-            type="number"
-            min={1}
-            max={product.maxQuantity}
-            value={quantity}
-            onChange={(e) => {
-              const val = Math.min(Math.max(1, parseInt(e.target.value) || 1), product.maxQuantity);
-              onQuantityChange(val);
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-16 px-2 py-1 border border-border rounded text-xs font-mono text-ink text-center outline-none focus:border-amber"
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* REUSABLE FIELD */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className={`block text-[11px] font-mono text-ink-muted uppercase mb-1 ${dm_mono.className}`}>
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-/* DIVIDER */
-function Divider({ label }: { label: string }) {
-  return (
-    <div className="relative my-4">
-      <div className="h-px bg-border" />
-      <span className={`absolute top-1/2 -translate-y-1/2 text-[10px] font-mono text-ink-subtle bg-surface-raised uppercase pr-2 ${dm_mono.className}`}>
-        {label}
-      </span>
+        )}
+        <button
+          onClick={handleTransfer}
+          disabled={!canSend}
+          className={`${syne.className} w-full h-12 rounded-xl text-white text-[16px] font-bold flex items-center justify-center gap-2 transition ${
+            canSend ? "bg-amber active:bg-amber-hover" : "bg-border-strong text-ink-subtle"
+          }`}
+        >
+          {submitting ? "Sending..." : "Send parcel"}
+        </button>
+      </div>
     </div>
   );
 }
