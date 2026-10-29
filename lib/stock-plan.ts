@@ -474,7 +474,7 @@ export function buildPlan(
 
 /* ─────────────── delivery messages ─────────────── */
 
-export type DeliveryLayout = 'quantity-last' | 'quantity-first'
+export type DeliveryLayout = 'quantity-last' | 'quantity-first' | 'quantity-last-loose'
 
 export type DeliveryParse = {
   date: string
@@ -500,6 +500,19 @@ const DELIVERY_ITEM = /^(.+?)\s*(?:\.{2,}|\s[-–—:]\s*|\s{2,})\s*(\d+)\s*(?:\
  * would be a numbered list, and reading the index as a quantity would be wrong.
  */
 const DELIVERY_ITEM_QTY_FIRST = /^(\d+)\s+(.+?)\s*(?:\(([^)]*)\))?\s*$/
+
+/**
+ * "Laxira capsule 12", "Hamachin 3(Topmost)", "Airtab 10 pro xl 1(Nuclear vision)".
+ * Quantity last with nothing but a space in front of it — no dots, no dash.
+ *
+ * The name is lazy and the pattern is anchored, so the LAST number on the line
+ * is the quantity and any earlier ones stay in the name ("Airtab 10 pro xl").
+ * A line with no trailing number, such as
+ * "Black leather watch 1 and 1 bracelet (TB1)", matches nothing and is reported
+ * as unreadable rather than guessed at — which is the right answer, because
+ * whether that is one watch or one bracelet is unclear in the message itself.
+ */
+const DELIVERY_ITEM_LOOSE = /^(.+?)\s+(\d+)\s*(?:\(([^)]*)\))?\s*$/
 const DATE_IN_TEXT = /(\d{1,2})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{2,4})/
 
 /**
@@ -538,17 +551,32 @@ export function parseDeliveryMessage(text: string): DeliveryParse {
     items.push({ index: i, text: cleaned })
   }
 
-  // Whichever layout explains more lines wins; ties keep the dotted style.
+  // Whichever layout explains the most lines wins. Ties go to the stricter
+  // patterns: the loose one accepts a bare space as the separator, so it can
+  // also match a dotted line that happens to have a space, and should only be
+  // chosen when it genuinely reads more of the message.
   let lastCount = 0
   let firstCount = 0
+  let looseCount = 0
   for (const it of items) {
     if (DELIVERY_ITEM.test(it.text)) lastCount++
     if (DELIVERY_ITEM_QTY_FIRST.test(it.text)) firstCount++
+    if (DELIVERY_ITEM_LOOSE.test(it.text)) looseCount++
   }
-  const layout: DeliveryLayout = firstCount > lastCount ? 'quantity-first' : 'quantity-last'
+
+  let layout: DeliveryLayout = 'quantity-last'
+  if (firstCount > lastCount && firstCount >= looseCount) layout = 'quantity-first'
+  else if (looseCount > lastCount && looseCount > firstCount) layout = 'quantity-last-loose'
+
+  const pattern =
+    layout === 'quantity-first'
+      ? DELIVERY_ITEM_QTY_FIRST
+      : layout === 'quantity-last-loose'
+        ? DELIVERY_ITEM_LOOSE
+        : DELIVERY_ITEM
 
   for (const it of items) {
-    const m = it.text.match(layout === 'quantity-first' ? DELIVERY_ITEM_QTY_FIRST : DELIVERY_ITEM)
+    const m = it.text.match(pattern)
     const name = layout === 'quantity-first' ? m?.[2] : m?.[1]
     const quantity = layout === 'quantity-first' ? m?.[1] : m?.[2]
 
@@ -569,6 +597,38 @@ export function parseDeliveryMessage(text: string): DeliveryParse {
   for (const r of rows) if (!r.branch) r.branch = branchLabel
 
   return { date, branchLabel, layout, rows, unparsed }
+}
+
+export type LooseAmbiguity = {
+  row: SheetRow
+  /** The product that the line reads as when the trailing number is its name. */
+  product: SystemProduct
+}
+
+/**
+ * Only meaningful for 'quantity-last-loose', where a bare space separates the
+ * quantity. "Omega 3" is then either 3 of "Omega" or a product called "Omega 3"
+ * whose count was left off, and the message cannot say which.
+ *
+ * Flags exactly the lines where the second reading names a real product, so a
+ * person is asked only when there is something genuine to choose between.
+ */
+export function looseAmbiguities(
+  parse: DeliveryParse,
+  products: SystemProduct[]
+): LooseAmbiguity[] {
+  if (parse.layout !== 'quantity-last-loose') return []
+
+  const index = buildProductIndex(products)
+  const out: LooseAmbiguity[] = []
+
+  for (const row of parse.rows) {
+    const asName = `${row.name} ${row.rawQuantity}`
+    const hit = index.get(productKey(asName))
+    if (hit && hit.length > 0) out.push({ row, product: hit[0] })
+  }
+
+  return out
 }
 
 /**
@@ -608,4 +668,123 @@ export function suggestProduct(row: SheetRow, products: SystemProduct[]): System
   }
 
   return bestScore >= 0.8 ? best : undefined
+}
+
+/* ─────────────── new-product intake messages ─────────────── */
+
+/**
+ * A different shape from a delivery note: products grouped under the merchant
+ * that supplied them.
+ *
+ *   *‼️NEW PRODUCT RECEIVED IN ENUGU*
+ *
+ *    *PSF*
+ *   20 HAND GRIP BALL
+ *   20 FINGER NUMBNESS CREAM
+ *
+ *    *TNSTORES*
+ *   10 SOLAR WALL LAMP
+ *
+ * The merchant comes from the heading above a run of items rather than from a
+ * suffix on each line, which is what makes this worth its own parser.
+ */
+
+export type NewProductRow = {
+  /** 1-based line number, as pasted. */
+  row: number
+  name: string
+  merchant: string
+  quantity: number
+}
+
+export type NewProductsParse = {
+  branchLabel: string
+  date: string
+  groups: { merchant: string; rows: NewProductRow[] }[]
+  /** Every row, flattened, for callers that do not care about the grouping. */
+  rows: NewProductRow[]
+  unparsed: { line: number; text: string }[]
+}
+
+/** A heading is a whole line wrapped in the asterisks WhatsApp bolds with. */
+const BOLD_LINE = /^\*+\s*(.+?)\s*\*+$/
+const INTAKE_HEADER = /new\s+product|received\s+in/i
+
+/**
+ * True when a pasted message is an intake list rather than a delivery note, so
+ * one paste box can take either. Needs both the header and at least one bold
+ * merchant heading, because the header alone is not enough to tell them apart.
+ */
+export function looksLikeNewProducts(text: string): boolean {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  if (!lines.some((l) => INTAKE_HEADER.test(l.replace(/[*_~]/g, '')))) return false
+  return lines.slice(1).some((l) => BOLD_LINE.test(l))
+}
+
+export function parseNewProductsMessage(text: string): NewProductsParse {
+  const lines = text.split(/\r?\n/)
+  const groups: { merchant: string; rows: NewProductRow[] }[] = []
+  const unparsed: { line: number; text: string }[] = []
+  let branchLabel = ''
+  let date = ''
+  let current: { merchant: string; rows: NewProductRow[] } | null = null
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i].trim()
+    if (!raw) continue
+
+    const plain = raw.replace(/[*_~]/g, '').trim()
+    if (!plain) continue
+
+    // The header: it names the branch, and may carry a date.
+    if (!branchLabel && INTAKE_HEADER.test(plain)) {
+      const d = plain.match(DATE_IN_TEXT)
+      if (d) date = d[0].replace(/\s+/g, '')
+
+      const after = plain.replace(DATE_IN_TEXT, '').match(/\bin\s+(.+)$/i)
+      branchLabel = (after
+        ? after[1]
+        : plain
+            .replace(DATE_IN_TEXT, '')
+            .replace(/new\s+product(s)?|received|delivered/gi, '')
+      )
+        // Drop emoji and punctuation the branch name never contains.
+        .replace(/[^\p{L}\p{N}\s'-]/gu, '')
+        .trim()
+      continue
+    }
+
+    // A bold line that is not the header starts a new merchant group.
+    if (BOLD_LINE.test(raw)) {
+      const merchant = (raw.match(BOLD_LINE)?.[1] || '')
+        .replace(/[^\p{L}\p{N}\s'&.-]/gu, '')
+        .trim()
+      if (merchant) {
+        current = { merchant, rows: [] }
+        groups.push(current)
+        continue
+      }
+    }
+
+    const m = plain.match(DELIVERY_ITEM_QTY_FIRST)
+    const quantity = Number(m?.[1])
+    const name = m?.[2]?.trim()
+
+    // An item before any heading has no merchant to attribute it to, and a line
+    // that does not read as "<count> <name>" is reported rather than guessed.
+    if (!m || !name || !normalize(name) || !Number.isFinite(quantity) || !current) {
+      unparsed.push({ line: i + 1, text: plain })
+      continue
+    }
+
+    current.rows.push({ row: i + 1, name, merchant: current.merchant, quantity })
+  }
+
+  return {
+    branchLabel,
+    date,
+    groups: groups.filter((g) => g.rows.length > 0),
+    rows: groups.flatMap((g) => g.rows),
+    unparsed,
+  }
 }

@@ -41,6 +41,7 @@ import {
 import {
   buildPlan,
   normalize,
+  looseAmbiguities,
   parseDeliveryMessage,
   productKey,
   type ProductUpdate,
@@ -55,7 +56,11 @@ const LABEL = 'text-[11px] uppercase tracking-wider text-ink-subtle'
 const CARD = 'bg-surface-raised border border-border rounded-xl shadow-[0_1px_2px_rgba(17,24,39,0.04)]'
 
 type Line = { product: SystemProduct; quantity: number }
-type Unplaced = { text: string; quantity: number }
+type Unplaced = { id: string; text: string; quantity: number; note?: string }
+type DraftUnplaced = Omit<Unplaced, 'id'>
+
+const withIds = (drafts: DraftUnplaced[]): Unplaced[] =>
+  drafts.map((u, i) => ({ ...u, id: `${Date.now()}-${i}` }))
 type ApplyResult = {
   name: string
   status: 'verified' | 'unverified' | 'failed'
@@ -113,6 +118,12 @@ export default function LogDeliveryPage() {
   const [mode, setMode] = useState<'type' | 'paste'>('type')
   const [pasteText, setPasteText] = useState('')
   const [unplaced, setUnplaced] = useState<Unplaced[]>([])
+  // The entry a Find was started from. It stays in the list until a line is
+  // actually added, so backing out of the search never loses it.
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
+  // The count the message gave for that entry, carried into the quantity box
+  // so a found product does not have to have its number retyped.
+  const [resolvingQty, setResolvingQty] = useState('')
 
   /* writing */
   const [applying, setApplying] = useState(false)
@@ -188,9 +199,13 @@ export default function LogDeliveryPage() {
     setPicked(p)
     setOpen(false)
     setQuery('')
-    setQty('')
-    // Straight to the number — it is the only thing left to say.
-    requestAnimationFrame(() => qtyRef.current?.focus())
+    setQty(resolvingId ? resolvingQty : '')
+    // Straight to the number — it is the only thing left to say. Selected
+    // rather than just focused, so a pre-filled count is replaced on typing.
+    requestAnimationFrame(() => {
+      qtyRef.current?.focus()
+      qtyRef.current?.select()
+    })
   }
 
   /** The same product twice is one line: two deliveries of it, summed. */
@@ -208,6 +223,11 @@ export default function LogDeliveryPage() {
     const n = parseInt(qty, 10)
     if (!picked || !Number.isFinite(n) || n <= 0) return
     addLine(picked, n)
+    if (resolvingId) {
+      setUnplaced((cur) => cur.filter((u) => u.id !== resolvingId))
+      setResolvingId(null)
+      setResolvingQty('')
+    }
     setPicked(null)
     setQty('')
     requestAnimationFrame(() => searchRef.current?.focus())
@@ -230,12 +250,26 @@ export default function LogDeliveryPage() {
     )
 
     const byId = new Map(products.map((p) => [p.id, p]))
-    const stillOpen: Unplaced[] = []
+    const stillOpen: DraftUnplaced[] = []
+
+    // A line like "Omega 3" may be 3 of "Omega" or a product called "Omega 3"
+    // with no count. Never guess: hand those back to be added by hand.
+    const unsure = new Map(
+      looseAmbiguities(parse, products).map((a) => [a.row.row, a.product.name])
+    )
 
     for (const o of plan.outcomes) {
       const n = Number(o.row.rawQuantity)
       const product = o.productId ? byId.get(o.productId) : undefined
-      if (o.status === 'update' && product && Number.isFinite(n) && n > 0) {
+      const other = unsure.get(o.row.row)
+
+      if (other) {
+        stillOpen.push({
+          text: `${o.row.name} ${o.row.rawQuantity}`,
+          quantity: 0,
+          note: `could be ${n} × "${o.row.name}" or the product "${other}"`,
+        })
+      } else if (o.status === 'update' && product && Number.isFinite(n) && n > 0) {
         addLine(product, n)
       } else {
         stillOpen.push({ text: o.row.name, quantity: Number.isFinite(n) ? n : 0 })
@@ -243,7 +277,8 @@ export default function LogDeliveryPage() {
     }
     for (const u of parse.unparsed) stillOpen.push({ text: u.text, quantity: 0 })
 
-    setUnplaced(stillOpen)
+    setUnplaced(withIds(stillOpen))
+    setResolvingId(null)
     setPasteText('')
     setMode('type')
   }
@@ -312,6 +347,8 @@ export default function LogDeliveryPage() {
     setLines([])
     setUnplaced([])
     setPicked(null)
+    setResolvingId(null)
+    setResolvingQty('')
     setQuery('')
     setQty('')
     setResults(null)
@@ -619,6 +656,8 @@ export default function LogDeliveryPage() {
                 onClick={() => {
                   setPicked(null)
                   setQty('')
+                  setResolvingId(null)
+                  setResolvingQty('')
                 }}
                 className="w-10 h-10 -mt-2 -mr-2 shrink-0 rounded-lg flex items-center justify-center text-ink-subtle active:bg-amber-border/30"
                 aria-label="Cancel"
@@ -680,22 +719,33 @@ export default function LogDeliveryPage() {
           </div>
           {/* Capped with its own scroll, like the parcel panel's version. */}
           <div className="max-h-[38vh] overflow-y-auto overscroll-contain divide-y divide-border">
-            {unplaced.map((u, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
+            {unplaced.map((u) => (
+              <div
+                key={u.id}
+                className={`flex items-center gap-3 px-4 py-3 ${
+                  resolvingId === u.id ? 'bg-amber-muted' : ''
+                }`}
+              >
                 <div className="flex-1 min-w-0">
                   <div className="text-[14.5px] text-ink truncate">{u.text}</div>
-                  {u.quantity > 0 && (
-                    <div className={`${mono.className} text-[12px] text-ink-subtle`}>
-                      {u.quantity} units
-                    </div>
-                  )}
+                  <div className="text-[12px] truncate">
+                    {u.quantity > 0 && (
+                      <span className={`${mono.className} text-ink`}>{u.quantity} units</span>
+                    )}
+                    {u.quantity > 0 && u.note && <span className="text-ink-subtle"> · </span>}
+                    {u.note && <span className="text-amber-hover">{u.note}</span>}
+                    {u.quantity === 0 && !u.note && (
+                      <span className="text-ink-subtle">add it by hand above</span>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={() => {
+                    setResolvingId(u.id)
+                    setResolvingQty(u.quantity > 0 ? String(u.quantity) : '')
                     setMode('type')
                     setQuery(u.text)
                     setOpen(true)
-                    setUnplaced((cur) => cur.filter((_, j) => j !== i))
                     requestAnimationFrame(() => searchRef.current?.focus())
                   }}
                   className="h-10 px-3.5 shrink-0 rounded-lg border border-border text-[12.5px] font-medium text-ink active:bg-surface"
@@ -732,10 +782,14 @@ export default function LogDeliveryPage() {
                     <div className="text-[15px] text-ink font-medium truncate">
                       {u.product.name}
                     </div>
-                    <div className={`${mono.className} text-[12px] text-ink-subtle mt-0.5`}>
-                      {c.before} → {c.after}
+                    <div className="text-[12px] text-ink-subtle mt-0.5 truncate">
+                      {u.product.merchantName || 'No merchant'}
+                      <span className={mono.className}>
+                        {' · '}
+                        {c.before} → {c.after}
+                      </span>
                       {c.shortfall && (
-                        <span className="text-amber-hover">
+                        <span className={`${mono.className} text-amber-hover`}>
                           {' '}· over by {(c.delta ?? 0) - (c.before ?? 0)}
                         </span>
                       )}
