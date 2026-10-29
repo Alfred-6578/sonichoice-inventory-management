@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import SidebarItem from "./SidebarItem";
 import Link from "next/link";
-import { MdDashboard, MdHistory, MdInventory2, MdLocationOn, MdPerson, MdOutlineAssignmentTurnedIn } from "react-icons/md";
+import { MdDashboard, MdHistory, MdInventory2, MdLocationOn, MdPerson, MdOutlineAssignmentTurnedIn, MdOutlineMoveToInbox } from "react-icons/md";
 import { BiSolidPackage } from "react-icons/bi";
 import { IoIosPeople } from "react-icons/io";
 import { X, LogOut } from "lucide-react";
@@ -37,6 +37,7 @@ export default function Sidebar(
   const navItems = [
     { name: "Dashboard", href: "/dashboard", Icon: MdDashboard },
     { name: "Log Delivery", href: "/log-delivery", Icon: MdOutlineAssignmentTurnedIn },
+    { name: "Receive Stock", href: "/receive-stock", Icon: MdOutlineMoveToInbox },
     { name: "Parcels", href: "/parcels", Icon: BiSolidPackage },
     { name: "Branches", href: "/branches", Icon: MdLocationOn },
     { name: "Inventory", href: "/inventory", Icon: MdInventory2 },

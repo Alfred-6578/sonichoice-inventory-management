@@ -21,7 +21,7 @@ import { AlertTriangle, Check, Plus, Search, X } from "lucide-react";
 import { getBranches, ApiBranch } from "@/lib/branches";
 import { createParcel } from "@/lib/parcels";
 import { getStoredUser } from "@/lib/auth";
-import { buildPlan, normalize, parseDeliveryMessage } from "@/lib/stock-plan";
+import { buildPlan, looseAmbiguities, normalize, parseDeliveryMessage } from "@/lib/stock-plan";
 
 const dm_mono = DM_Mono({
   variable: "--font-dm_mono",
@@ -42,7 +42,11 @@ type BranchProduct = {
 type Item = { product: BranchProduct; quantity: number };
 
 /** A pasted line that could not be turned into an item. */
-type Unplaced = { text: string; quantity: number; note?: string };
+type Unplaced = { id: string; text: string; quantity: number; note?: string };
+type DraftUnplaced = Omit<Unplaced, "id">;
+
+const withIds = (drafts: DraftUnplaced[]): Unplaced[] =>
+  drafts.map((u, i) => ({ ...u, id: `${Date.now()}-${i}` }));
 
 const LABEL = "text-[11px] uppercase tracking-wider text-ink-subtle";
 
@@ -73,6 +77,12 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
   const [mode, setMode] = useState<"type" | "paste">("type");
   const [pasteText, setPasteText] = useState("");
   const [unplaced, setUnplaced] = useState<Unplaced[]>([]);
+  // The entry a Find was started from. It stays listed until an item is
+  // actually added, so backing out of the search never loses it.
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  // The count the message gave for that entry, carried into the quantity box
+  // so a found product does not have to have its number retyped.
+  const [resolvingQty, setResolvingQty] = useState("");
   const [clamped, setClamped] = useState(0);
   const [picked, setPicked] = useState<BranchProduct | null>(null);
   const [qty, setQty] = useState("");
@@ -130,8 +140,12 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
     setPicked(p);
     setOpen(false);
     setQuery("");
-    setQty("");
-    requestAnimationFrame(() => qtyRef.current?.focus());
+    setQty(resolvingId ? resolvingQty : "");
+    // Selected, not just focused: a pre-filled count is replaced on typing.
+    requestAnimationFrame(() => {
+      qtyRef.current?.focus();
+      qtyRef.current?.select();
+    });
   };
 
   const commit = () => {
@@ -150,6 +164,11 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
       return next;
     });
 
+    if (resolvingId) {
+      setUnplaced((cur) => cur.filter((u) => u.id !== resolvingId));
+      setResolvingId(null);
+      setResolvingQty("");
+    }
     setPicked(null);
     setQty("");
     requestAnimationFrame(() => searchRef.current?.focus());
@@ -174,29 +193,47 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
 
     const label = fromBranch?.name || "branch";
     const parse = parseDeliveryMessage(pasteText);
+    const asSystem = products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      merchantName: "",
+      trackingId: p.trackingId,
+      stocks: [
+        { branchId: fromBranchId, quantity: p.maxQuantity, lowStockAlert: 0 },
+      ],
+    }));
+
     const plan = buildPlan(
       parse.rows.map((r) => ({ ...r, branch: label })),
       { [normalize(label)]: fromBranchId },
-      products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        merchantName: "",
-        trackingId: p.trackingId,
-        stocks: [
-          { branchId: fromBranchId, quantity: p.maxQuantity, lowStockAlert: 0 },
-        ],
-      })),
+      asSystem,
       "deduct"
+    );
+
+    // A line like "Omega 3" may be 3 of "Omega" or a product called "Omega 3"
+    // with no count. Never guess: hand those back to be added by hand.
+    const unsure = new Map(
+      looseAmbiguities(parse, asSystem).map((a) => [a.row.row, a.product.name])
     );
 
     const byId = new Map(products.map((p) => [p.id, p]));
     const next = [...items];
-    const notPlaced: Unplaced[] = [];
+    const notPlaced: DraftUnplaced[] = [];
     let reduced = 0;
 
     for (const o of plan.outcomes) {
       const want = Number(o.row.rawQuantity);
       const product = o.productId ? byId.get(o.productId) : undefined;
+      const other = unsure.get(o.row.row);
+
+      if (other) {
+        notPlaced.push({
+          text: `${o.row.name} ${o.row.rawQuantity}`,
+          quantity: 0,
+          note: `could be ${want} × "${o.row.name}" or the product "${other}"`,
+        });
+        continue;
+      }
 
       if (o.status !== "update" || !product || !Number.isFinite(want) || want <= 0) {
         notPlaced.push({ text: o.row.name, quantity: Number.isFinite(want) ? want : 0 });
@@ -225,7 +262,8 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
     for (const u of parse.unparsed) notPlaced.push({ text: u.text, quantity: 0 });
 
     setItems(next);
-    setUnplaced(notPlaced);
+    setUnplaced(withIds(notPlaced));
+    setResolvingId(null);
     setClamped(reduced);
     setPasteText("");
     setMode("type");
@@ -280,6 +318,8 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
     onClose(didCreate);
     setItems([]);
     setUnplaced([]);
+    setResolvingId(null);
+    setResolvingQty("");
     setClamped(0);
     setPasteText("");
     setToBranchId("");
@@ -490,6 +530,8 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
                   onClick={() => {
                     setPicked(null);
                     setQty("");
+                    setResolvingId(null);
+                    setResolvingQty("");
                   }}
                   className="w-10 h-10 -mt-2 -mr-2 shrink-0 rounded-lg flex items-center justify-center text-ink-subtle active:bg-amber-border/30"
                   aria-label="Cancel"
@@ -554,20 +596,35 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
             {/* Capped with its own scroll: this is secondary to the item list,
                 so a long one must not push the parcel out of reach. */}
             <div className="max-h-[38vh] overflow-y-auto overscroll-contain divide-y divide-border">
-              {unplaced.map((u, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3">
+              {unplaced.map((u) => (
+                <div
+                  key={u.id}
+                  className={`flex items-center gap-3 px-4 py-3 ${
+                    resolvingId === u.id ? "bg-amber-muted" : ""
+                  }`}
+                >
                   <div className="flex-1 min-w-0">
                     <div className="text-[14.5px] text-ink truncate">{u.text}</div>
-                    <div className={`${dm_mono.className} text-[12px] text-ink-subtle truncate`}>
-                      {u.note || (u.quantity > 0 ? `${u.quantity} units` : "could not be read")}
+                    <div className="text-[12px] truncate">
+                      {u.quantity > 0 && (
+                        <span className={`${dm_mono.className} text-ink`}>
+                          {u.quantity} units
+                        </span>
+                      )}
+                      {u.quantity > 0 && u.note && <span className="text-ink-subtle"> · </span>}
+                      {u.note && <span className="text-amber-hover">{u.note}</span>}
+                      {u.quantity === 0 && !u.note && (
+                        <span className="text-ink-subtle">could not be read</span>
+                      )}
                     </div>
                   </div>
                   <button
                     onClick={() => {
+                      setResolvingId(u.id);
+                      setResolvingQty(u.quantity > 0 ? String(u.quantity) : "");
                       setMode("type");
                       setQuery(u.text);
                       setOpen(true);
-                      setUnplaced((cur) => cur.filter((_, j) => j !== i));
                       requestAnimationFrame(() => searchRef.current?.focus());
                     }}
                     className="h-10 px-3.5 shrink-0 rounded-lg border border-border text-[12.5px] font-medium text-ink active:bg-surface"

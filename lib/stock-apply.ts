@@ -169,6 +169,44 @@ export async function applyUpdate(
   return expected;
 }
 
+/**
+ * Adds stock to one branch, on top of whatever the server holds right now —
+ * not on top of what the screen last read, so a sale recorded in between is
+ * kept. A branch with no stock row yet gets one, which is the normal case for
+ * a product arriving at a branch for the first time.
+ *
+ * Returns the quantity expected at that branch, for verification.
+ */
+export async function applyStockIncrease(
+  productId: string,
+  branchId: string,
+  add: number
+): Promise<Record<string, number>> {
+  const fresh = await withRetry(() => getProduct(productId));
+  const byBranch = new Map<string, BranchEntry>();
+
+  for (const s of fresh.stocks || []) {
+    const bid = s.branchId || s.branch?.id;
+    if (!bid) continue;
+    byBranch.set(bid, {
+      branchId: bid,
+      quantity: s.quantity ?? 0,
+      lowStockAlert: s.lowStockAlert ?? 0,
+    });
+  }
+
+  const current = byBranch.get(branchId);
+  const next = (current?.quantity ?? 0) + add;
+  byBranch.set(branchId, {
+    branchId,
+    quantity: next,
+    lowStockAlert: current?.lowStockAlert ?? 0,
+  });
+
+  await updateProduct(productId, { branches: [...byBranch.values()] });
+  return { [branchId]: next };
+}
+
 /** Reads a product back and reports whether the written quantities landed. */
 export async function verifyUpdate(
   productId: string,
