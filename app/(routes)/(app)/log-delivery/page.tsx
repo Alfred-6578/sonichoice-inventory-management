@@ -195,6 +195,31 @@ export default function LogDeliveryPage() {
       .slice(0, 8)
   }, [query, products])
 
+
+  /**
+   * Shown when nothing contains what was typed. A pasted name often differs
+   * from the one on file by a word ("Moadop Eye Tea" vs "Moadop Eye Care Tea"),
+   * and an empty result left no way to reach the product — ranking by shared
+   * words surfaces it instead.
+   */
+  const closest = useMemo(() => {
+    if (matches.length > 0 || !query.trim()) return []
+    const wanted = new Set(normalize(query).split(' ').filter(Boolean))
+    if (wanted.size === 0) return []
+
+    return products
+      .map((p) => {
+        const have = new Set(normalize(p.name).split(' ').filter(Boolean))
+        let shared = 0
+        for (const w of wanted) if (have.has(w)) shared++
+        return { p, shared }
+      })
+      .filter((x) => x.shared > 0)
+      .sort((a, b) => b.shared - a.shared || a.p.name.localeCompare(b.p.name))
+      .slice(0, 8)
+      .map((x) => x.p)
+  }, [matches, query, products])
+
   const pick = (p: SystemProduct) => {
     setPicked(p)
     setOpen(false)
@@ -275,7 +300,8 @@ export default function LogDeliveryPage() {
         stillOpen.push({ text: o.row.name, quantity: Number.isFinite(n) ? n : 0 })
       }
     }
-    for (const u of parse.unparsed) stillOpen.push({ text: u.text, quantity: 0 })
+    for (const u of parse.unparsed)
+      stillOpen.push({ text: u.text, quantity: 0, note: 'could not be read' })
 
     setUnplaced(withIds(stillOpen))
     setResolvingId(null)
@@ -604,13 +630,42 @@ export default function LogDeliveryPage() {
               {/* picker: full width, so it can never run off a phone screen */}
               {open && query.trim() !== '' && (
                 <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 bg-surface-raised border border-border rounded-xl shadow-[0_12px_28px_-8px_rgba(17,24,39,0.18)] overflow-hidden">
-                  {matches.length === 0 ? (
+                  {matches.length === 0 && closest.length === 0 ? (
                     <div className="px-4 py-5 text-center">
                       <p className="text-[14px] text-ink">No match at {branchName}</p>
                       <p className="text-[12.5px] text-ink-subtle mt-0.5">
-                        Nothing here is called &ldquo;{query.trim()}&rdquo;
+                        Nothing here is called &ldquo;{query.trim()}&rdquo;. Try fewer words.
                       </p>
                     </div>
+                  ) : matches.length === 0 ? (
+                    <>
+                      <div className="px-4 py-2 bg-amber-muted border-b border-amber-border">
+                        <p className="text-[12.5px] text-ink">No exact match — closest by name</p>
+                      </div>
+                      <div className="max-h-[50vh] overflow-y-auto overscroll-contain divide-y divide-border">
+                        {closest.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => pick(p)}
+                            className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-surface"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[15px] text-ink font-medium truncate">
+                                {p.name}
+                              </div>
+                              <div className="text-[12.5px] text-ink-subtle truncate">
+                                {p.merchantName || 'No merchant'}
+                              </div>
+                            </div>
+                            <span
+                              className={`${mono.className} shrink-0 px-2 py-1 rounded-md border border-border bg-surface text-[12px] text-ink-muted`}
+                            >
+                              {stockAt(p, branchId)} here
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
                   ) : (
                     <div className="max-h-[50vh] overflow-y-auto overscroll-contain divide-y divide-border">
                       {matches.map((p) => (
@@ -703,8 +758,8 @@ export default function LogDeliveryPage() {
 
       {/* lines the paste could not place */}
       {unplaced.length > 0 && (
-        <div className={`${CARD} overflow-hidden`}>
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-muted border-b border-amber-border">
+        <div className={`${CARD}`}>
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-muted border-b border-amber-border rounded-t-xl">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-hover shrink-0" />
             <span className="text-[12.5px] font-medium text-ink">
               Not matched
@@ -718,7 +773,7 @@ export default function LogDeliveryPage() {
             </button>
           </div>
           {/* Capped with its own scroll, like the parcel panel's version. */}
-          <div className="max-h-[38vh] overflow-y-auto overscroll-contain divide-y divide-border">
+          <div className="divide-y divide-border">
             {unplaced.map((u) => (
               <div
                 key={u.id}

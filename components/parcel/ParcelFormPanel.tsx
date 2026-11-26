@@ -14,13 +14,16 @@
  */
 
 import { FormDataProps } from "@/types/parcelTypes";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Select from "../ui/Select";
 import { DM_Mono, Syne } from "next/font/google";
 import { AlertTriangle, Check, Plus, Search, X } from "lucide-react";
 import { getBranches, ApiBranch } from "@/lib/branches";
 import { createParcel } from "@/lib/parcels";
 import { getStoredUser } from "@/lib/auth";
+import { getAllMerchants } from "@/lib/merchants";
+import { ApiProduct } from "@/lib/products";
+import { fetchBranchProducts, type LoadProgress } from "@/lib/stock-apply";
 import { buildPlan, looseAmbiguities, normalize, parseDeliveryMessage } from "@/lib/stock-plan";
 
 const dm_mono = DM_Mono({
@@ -36,6 +39,7 @@ type BranchProduct = {
   trackingId: string;
   name: string;
   description: string;
+  merchantName: string;
   maxQuantity: number;
 };
 
@@ -50,23 +54,71 @@ const withIds = (drafts: DraftUnplaced[]): Unplaced[] =>
 
 const LABEL = "text-[11px] uppercase tracking-wider text-ink-subtle";
 
-/** productStocks -> the pickable products for a branch, in stock only. */
-function productsOf(branch: ApiBranch | undefined): BranchProduct[] {
+/**
+ * The branch's catalogue, from GET /products?branchId — the same source Log
+ * Delivery and Receive Stock search.
+ *
+ * This used to read branch.productStocks, embedded in GET /branches. That only
+ * holds products with a stock row at the branch, which is a much smaller set
+ * than the catalogue: anything missing from it could not be matched OR found by
+ * searching, so a pasted line naming one had nowhere to go. It also lacked
+ * merchant names, so same-named products could not be told apart.
+ *
+ * Products the branch holds none of are kept and shown as unavailable, rather
+ * than hidden, so "there is none here" is distinguishable from "no such thing".
+ */
+/**
+ * The branch's own stock rows, from GET /branches. Always present, always
+ * carries the real quantity, and needs no extra request — this is the base the
+ * panel can never be worse than.
+ */
+function baseProductsOf(
+  branch: ApiBranch | undefined,
+  merchants: Map<string, string>
+): BranchProduct[] {
   if (!branch?.productStocks) return [];
-  return branch.productStocks
-    .filter((s) => s.quantity > 0)
-    .map((s) => ({
-      id: s.productId,
-      trackingId: s.product?.trackingId || s.productId.slice(0, 8),
-      name: s.product?.name || "Product",
-      description: (s.product?.description as string) ?? "",
-      maxQuantity: s.quantity,
-    }));
+  return branch.productStocks.map((s) => ({
+    id: s.productId,
+    trackingId: s.product?.trackingId || s.productId.slice(0, 8),
+    name: s.product?.name || "Product",
+    description: (s.product?.description as string) ?? "",
+    merchantName: merchants.get((s.product?.merchantId as string) || "") || "",
+    maxQuantity: s.quantity,
+  }));
+}
+
+function toBranchProduct(
+  p: ApiProduct,
+  branchId: string,
+  /** productId -> quantity, from the branch's own productStocks. */
+  branchStock: Map<string, number>
+): BranchProduct {
+  const row = (p.stocks || []).find((s) => (s.branchId || s.branch?.id) === branchId);
+
+  // The branch's own rows are the trusted figure: GET /products?branchId is
+  // used to widen the catalogue, and is not guaranteed to carry a stock row
+  // for this branch. Reading the quantity from it alone put every product at
+  // zero, which made "Add to parcel" do nothing at all.
+  const quantity = branchStock.get(p.id) ?? row?.quantity ?? 0;
+
+  return {
+    id: p.id,
+    trackingId: p.trackingId || p.id.slice(0, 8),
+    name: p.name,
+    description: (p.description as string) ?? "",
+    merchantName: p.merchant?.name || "",
+    maxQuantity: quantity,
+  };
 }
 
 export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
   const [branches, setBranches] = useState<ApiBranch[]>([]);
   const [branchesLoading, setBranchesLoading] = useState(true);
+  const [fetched, setFetched] = useState<BranchProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [loaded, setLoaded] = useState<LoadProgress | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [merchantNames, setMerchantNames] = useState<Map<string, string>>(new Map());
   const [fromBranchId, setFromBranchId] = useState("");
   const [toBranchId, setToBranchId] = useState("");
   const [size, setSize] = useState("");
@@ -104,10 +156,65 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
       .then(setBranches)
       .catch(() => {})
       .finally(() => setBranchesLoading(false));
+
+    getAllMerchants()
+      .then((ms) => setMerchantNames(new Map(ms.map((m) => [m.id, m.name]))))
+      .catch(() => {});
   }, []);
 
+  // Each page lands in state as it arrives, so the search works from the first
+  // one rather than after the last.
+  const loadProducts = useCallback(
+    async (bid: string, branchStock: Map<string, number>) => {
+    setProductsLoading(true);
+    setFetched([]);
+    setLoadError("");
+    setLoaded(null);
+    try {
+      await fetchBranchProducts(bid, (list, progress) => {
+        setFetched(list.map((p) => toBranchProduct(p, bid, branchStock)));
+        setLoaded(progress);
+      });
+    } catch (err) {
+      // Swallowing this left an empty catalogue, a dead paste button and no
+      // explanation. The branch's own rows still stand, so this is a partial
+      // failure worth naming rather than hiding.
+      setLoadError(
+        err instanceof Error ? err.message : "Could not load the full product list"
+      );
+    } finally {
+      setProductsLoading(false);
+    }
+    },
+    []
+  );
+
   const fromBranch = branches.find((b) => b.id === fromBranchId);
-  const products = useMemo(() => productsOf(fromBranch), [fromBranch]);
+
+  /** What GET /branches says this branch holds — the figure we trust. */
+  const branchStock = useMemo(
+    () =>
+      new Map(
+        (fromBranch?.productStocks || []).map((s) => [s.productId, s.quantity])
+      ),
+    [fromBranch]
+  );
+
+  useEffect(() => {
+    if (fromBranchId) loadProducts(fromBranchId, branchStock);
+  }, [fromBranchId, branchStock, loadProducts]);
+
+  /**
+   * Branch rows first, then anything the catalogue query adds that they did not
+   * already cover. A union, not a replacement: if that query fails or returns
+   * nothing, the panel still works on the branch's own stock exactly as before.
+   */
+  const products = useMemo(() => {
+    const byId = new Map<string, BranchProduct>();
+    for (const p of baseProductsOf(fromBranch, merchantNames)) byId.set(p.id, p);
+    for (const p of fetched) if (!byId.has(p.id)) byId.set(p.id, p);
+    return [...byId.values()];
+  }, [fromBranch, merchantNames, fetched]);
 
   const destinations = branches
     .filter((b) => b.id !== fromBranchId)
@@ -132,6 +239,29 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
       .slice(0, 8);
   }, [query, products]);
 
+  /**
+   * Shown when nothing contains what was typed. A pasted name often differs
+   * from the name on file by a word or two, and an empty result gave no way to
+   * reach the product at all — ranking by shared words surfaces it instead.
+   */
+  const closest = useMemo(() => {
+    if (matches.length > 0 || !query.trim()) return [];
+    const wanted = new Set(normalize(query).split(" ").filter(Boolean));
+    if (wanted.size === 0) return [];
+
+    return products
+      .map((p) => {
+        const have = new Set(normalize(p.name).split(" ").filter(Boolean));
+        let shared = 0;
+        for (const w of wanted) if (have.has(w)) shared++;
+        return { p, shared };
+      })
+      .filter((x) => x.shared > 0)
+      .sort((a, b) => b.shared - a.shared || a.p.name.localeCompare(b.p.name))
+      .slice(0, 8)
+      .map((x) => x.p);
+  }, [matches, query, products]);
+
   /** How much of a product is still free to add, given what is already listed. */
   const remainingFor = (p: BranchProduct) =>
     p.maxQuantity - (items.find((i) => i.product.id === p.id)?.quantity ?? 0);
@@ -152,9 +282,20 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
     const n = parseInt(qty, 10);
     if (!picked || !Number.isFinite(n) || n <= 0) return;
 
-    // Never let a parcel promise more than the branch is holding.
+    // Never let a parcel promise more than the branch is holding — but say so
+    // rather than silently refusing, which read as the product disappearing.
     const capped = Math.min(n, remainingFor(picked));
-    if (capped <= 0) return;
+    if (capped <= 0) {
+      setError(
+        picked.maxQuantity === 0
+          ? `${picked.name}: this branch has none in stock`
+          : `${picked.name}: all ${picked.maxQuantity} are already in the parcel`
+      );
+      setPicked(null);
+      setQty("");
+      return;
+    }
+    setError("");
 
     setItems((cur) => {
       const at = cur.findIndex((i) => i.product.id === picked.id);
@@ -196,7 +337,7 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
     const asSystem = products.map((p) => ({
       id: p.id,
       name: p.name,
-      merchantName: "",
+      merchantName: p.merchantName,
       trackingId: p.trackingId,
       stocks: [
         { branchId: fromBranchId, quantity: p.maxQuantity, lowStockAlert: 0 },
@@ -235,8 +376,21 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
         continue;
       }
 
-      if (o.status !== "update" || !product || !Number.isFinite(want) || want <= 0) {
-        notPlaced.push({ text: o.row.name, quantity: Number.isFinite(want) ? want : 0 });
+      // Judged on the product and the stock, not on the plan's status: a
+      // product the branch holds none of comes back as 'unchanged' rather than
+      // 'update', and gating on status alone dropped it here with no reason
+      // given — which read as the line being thrown away.
+      if (!product || !Number.isFinite(want) || want <= 0) {
+        notPlaced.push({
+          text: o.row.name,
+          quantity: Number.isFinite(want) ? want : 0,
+          note:
+            o.status === "ambiguous"
+              ? "more than one product matches this name"
+              : o.status === "invalid"
+                ? "the quantity could not be read"
+                : "no product with this name is stocked at this branch",
+        });
         continue;
       }
 
@@ -248,7 +402,10 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
         notPlaced.push({
           text: o.row.name,
           quantity: want,
-          note: "all of this product is already in the parcel",
+          note:
+            product.maxQuantity === 0
+              ? "none of this in stock at this branch"
+              : "all of it is already in the parcel",
         });
         continue;
       }
@@ -259,7 +416,8 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
       else next[at] = { ...next[at], quantity: already + add };
     }
 
-    for (const u of parse.unparsed) notPlaced.push({ text: u.text, quantity: 0 });
+    for (const u of parse.unparsed)
+      notPlaced.push({ text: u.text, quantity: 0, note: "could not be read" });
 
     setItems(next);
     setUnplaced(withIds(notPlaced));
@@ -368,6 +526,15 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
             <span className="text-[14px] text-ink">{success}</span>
           </div>
         )}
+        {loadError && (
+          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-amber-muted border border-amber-border">
+            <AlertTriangle className="w-4 h-4 text-amber-hover shrink-0 mt-0.5" />
+            <span className="text-[13px] text-ink">
+              {loadError}. Showing what this branch holds — some products may be
+              missing from the search.
+            </span>
+          </div>
+        )}
         {error && (
           <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-cancelled-bg border border-cancelled-border">
             <AlertTriangle className="w-4 h-4 text-cancelled shrink-0 mt-0.5" />
@@ -419,11 +586,15 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
                   disabled={products.length === 0}
                   // 16px keeps iOS Safari from zooming the page on focus.
                   className={`${dm_mono.className} w-full px-4 py-3.5 bg-transparent outline-none text-base text-ink placeholder:text-ink-subtle leading-relaxed resize-y`}
-                  placeholder={"4 Kreain gel\n7 Moadop eye care tea\n1 Pressure washer"}
+                  placeholder={
+                    productsLoading
+                      ? "Wait for the products to finish loading..."
+                      : "4 Kreain gel\n7 Moadop eye care tea\n1 Pressure washer"
+                  }
                 />
                 <button
                   onClick={absorbPaste}
-                  disabled={!pasteText.trim() || products.length === 0}
+                  disabled={!pasteText.trim() || productsLoading}
                   className="w-full h-12 border-t border-border text-[15px] font-semibold text-ink disabled:text-ink-subtle active:bg-surface"
                 >
                   Add these to the parcel
@@ -446,9 +617,9 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
                 placeholder={
                   products.length > 0
                     ? "Type a product name"
-                    : branchesLoading
-                      ? "Loading stock..."
-                      : "Nothing in stock at this branch"
+                    : productsLoading || branchesLoading
+                      ? "Loading products..."
+                      : "No products at this branch"
                 }
               />
               {query && (
@@ -467,13 +638,58 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
               {/* picker: full width, so it can never run off a phone screen */}
               {open && query.trim() !== "" && (
                 <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 bg-surface-raised border border-border rounded-xl shadow-[0_12px_28px_-8px_rgba(17,24,39,0.18)] overflow-hidden">
-                  {matches.length === 0 ? (
+                  {matches.length === 0 && closest.length === 0 ? (
                     <div className="px-4 py-5 text-center">
-                      <p className="text-[14px] text-ink">No match in stock here</p>
+                      <p className="text-[14px] text-ink">Nothing here matches</p>
                       <p className="text-[12.5px] text-ink-subtle mt-0.5">
-                        Nothing available is called &ldquo;{query.trim()}&rdquo;
+                        No product at this branch is called &ldquo;{query.trim()}&rdquo;.
+                        Try fewer words.
                       </p>
                     </div>
+                  ) : matches.length === 0 ? (
+                    <>
+                      <div className="px-4 py-2 bg-amber-muted border-b border-amber-border">
+                        <p className="text-[12.5px] text-ink">
+                          No exact match — closest by name
+                        </p>
+                      </div>
+                      <div className="max-h-[45vh] overflow-y-auto overscroll-contain divide-y divide-border">
+                        {closest.map((p) => {
+                          const left = remainingFor(p);
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => left > 0 && pick(p)}
+                              disabled={left <= 0}
+                              className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-surface disabled:opacity-50"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[15px] text-ink font-medium truncate">
+                                  {p.name}
+                                </div>
+                                <div className="text-[12px] text-ink-subtle truncate">
+                                  {p.merchantName || "No merchant"}
+                                  <span className={dm_mono.className}> · {p.trackingId}</span>
+                                </div>
+                              </div>
+                              <span
+                                className={`${dm_mono.className} shrink-0 px-2 py-1 rounded-md border text-[12px] ${
+                                  left <= 0
+                                    ? "bg-cancelled-bg text-cancelled border-cancelled-border"
+                                    : "bg-surface text-ink-muted border-border"
+                                }`}
+                              >
+                                {p.maxQuantity === 0
+                                  ? "none here"
+                                  : left <= 0
+                                    ? "all added"
+                                    : `${left} free`}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
                   ) : (
                     <div className="max-h-[45vh] overflow-y-auto overscroll-contain divide-y divide-border">
                       {matches.map((p) => {
@@ -489,8 +705,9 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
                               <div className="text-[15px] text-ink font-medium truncate">
                                 {p.name}
                               </div>
-                              <div className={`${dm_mono.className} text-[12px] text-ink-subtle truncate`}>
-                                {p.trackingId}
+                              <div className="text-[12px] text-ink-subtle truncate">
+                                {p.merchantName || "No merchant"}
+                                <span className={dm_mono.className}> · {p.trackingId}</span>
                               </div>
                             </div>
                             <span
@@ -500,7 +717,11 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
                                   : "bg-surface text-ink-muted border-border"
                               }`}
                             >
-                              {left <= 0 ? "all added" : `${left} free`}
+                              {p.maxQuantity === 0
+                                ? "none here"
+                                : left <= 0
+                                  ? "all added"
+                                  : `${left} free`}
                             </span>
                           </button>
                         );
@@ -510,6 +731,33 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
                 </div>
               )}
             </div>
+            )}
+
+            {productsLoading && (
+              <div className="mt-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] text-ink-muted">
+                    {products.length > 0 ? "Still loading products" : "Loading products"}
+                  </span>
+                  <span className={`${dm_mono.className} text-[12px] text-ink-subtle`}>
+                    {loaded
+                      ? `${loaded.loaded}${loaded.lastPage > 1 ? ` · ${loaded.page}/${loaded.lastPage}` : ""}`
+                      : ""}
+                  </span>
+                </div>
+                <div className="h-[3px] mt-1.5 rounded-full bg-border overflow-hidden">
+                  {loaded ? (
+                    <div
+                      className="h-full bg-amber rounded-full transition-[width] duration-500 ease-out"
+                      style={{
+                        width: `${Math.max(6, Math.round((loaded.page / Math.max(1, loaded.lastPage)) * 100))}%`,
+                      }}
+                    />
+                  ) : (
+                    <div className="h-full w-1/3 bg-amber/60 rounded-full animate-pulse" />
+                  )}
+                </div>
+              </div>
             )}
           </div>
         ) : (
@@ -522,8 +770,12 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
                   <div className="text-[16.5px] text-ink font-semibold leading-snug">
                     {picked.name}
                   </div>
-                  <div className={`${dm_mono.className} text-[12px] text-ink-muted mt-0.5`}>
-                    {picked.trackingId} · {remainingFor(picked)} free
+                  <div className="text-[12px] text-ink-muted mt-0.5 truncate">
+                    {picked.merchantName || "No merchant"}
+                    <span className={dm_mono.className}>
+                      {" · "}
+                      {remainingFor(picked)} free
+                    </span>
                   </div>
                 </div>
                 <button
@@ -577,8 +829,8 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
 
         {/* LINES THE PASTE COULD NOT PLACE */}
         {unplaced.length > 0 && (
-          <div className="border border-amber-border rounded-xl overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-muted border-b border-amber-border">
+          <div className="border border-amber-border rounded-xl">
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-muted border-b border-amber-border rounded-t-xl">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-hover shrink-0" />
               <span className="text-[12.5px] font-medium text-ink">
                 Not added
@@ -595,7 +847,7 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
             </div>
             {/* Capped with its own scroll: this is secondary to the item list,
                 so a long one must not push the parcel out of reach. */}
-            <div className="max-h-[38vh] overflow-y-auto overscroll-contain divide-y divide-border">
+            <div className="divide-y divide-border">
               {unplaced.map((u) => (
                 <div
                   key={u.id}
@@ -653,8 +905,12 @@ export default function ParcelFormPanel({ isOpen, onClose }: FormDataProps) {
                     <div className="text-[15px] text-ink font-medium truncate">
                       {i.product.name}
                     </div>
-                    <div className={`${dm_mono.className} text-[12px] text-ink-subtle`}>
-                      {i.product.trackingId} · {i.product.maxQuantity} in stock
+                    <div className="text-[12px] text-ink-subtle truncate">
+                      {i.product.merchantName || "No merchant"}
+                      <span className={dm_mono.className}>
+                        {" · "}
+                        {i.product.maxQuantity} in stock
+                      </span>
                     </div>
                   </div>
                   <div className={`${dm_mono.className} text-[19px] font-medium text-ink shrink-0`}>
