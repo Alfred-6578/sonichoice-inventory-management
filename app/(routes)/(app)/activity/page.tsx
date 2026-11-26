@@ -105,6 +105,8 @@ export default function ActivityLogsPage() {
   })
 
   const debouncedSearch = useDebounce(filters.search, 1500)
+  /** Guards against out-of-order responses while someone is typing. */
+  const requestId = useRef(0)
 
   useEffect(() => {
     const user = getStoredUser()
@@ -112,6 +114,9 @@ export default function ActivityLogsPage() {
   }, [])
 
   const fetchLogs = useCallback(async () => {
+    // Only the newest request may write to the screen. Without this a slow
+    // early search can land after a later one and replace its results.
+    const request = ++requestId.current
     setLoading(true)
     setError("")
     try {
@@ -126,6 +131,8 @@ export default function ActivityLogsPage() {
         ? await getMyActivityLogs(sharedFilters)
         : await getActivityLogs({ ...sharedFilters, branchId: branchId || undefined })
 
+      if (request !== requestId.current) return
+
       setLogs(res.data || [])
       if (res.meta) {
         setTotalCount(res.meta.total)
@@ -133,11 +140,12 @@ export default function ActivityLogsPage() {
       }
       if (res.keywordCounts) setCounts(res.keywordCounts)
     } catch (err) {
+      if (request !== requestId.current) return
       console.error('Failed to fetch activity logs:', err)
       setError(err instanceof Error ? err.message : 'Failed to load activity logs')
       setLogs([])
     } finally {
-      setLoading(false)
+      if (request === requestId.current) setLoading(false)
     }
   }, [page, debouncedSearch, activeKeyword, filters.branch, filters.scope])
 
@@ -228,8 +236,12 @@ export default function ActivityLogsPage() {
         setFilters={setFilters}
         total={logs.length}
         onChange={(f) => {
-          if ((f as Filters).branch !== filters.branch) setPage(1)
-          setFilters((prev) => ({ ...prev, ...(f as Filters) }))
+          const next = f as Filters
+          // Any change to the result set invalidates the page offset.
+          if (next.search !== filters.search || next.branch !== filters.branch) {
+            setPage(1)
+          }
+          setFilters((prev) => ({ ...prev, ...next }))
         }}
         filterConfigs={
           filters.scope === 'all' && isAdmin

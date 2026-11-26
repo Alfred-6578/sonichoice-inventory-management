@@ -228,19 +228,41 @@ export default function FilterBar({
   return (
     <div className="flex gap-2 items-center flex-wrap py-1.5 pb-3">
       {/* Search */}
-      <div className={`flex items-center gap-2 px-3 py-[7px] bg-surface-raised border border-border rounded-lg flex-1 min-w-[180px] max-w-[280px] focus-within:border-border-strong ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
-        <svg viewBox="0 0 24 24" className="w-[13px] h-[13px] fill-ink-subtle shrink-0">
-          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-        </svg>
+      {/* The search box stays live while a request is in flight. Disabling it
+          mid-fetch dropped the keystrokes typed during the round trip and took
+          the caret with it, which made a two-word search almost impossible. A
+          spinner says the same thing without taking the field away. */}
+      <div className="flex items-center gap-2 px-3 py-[7px] bg-surface-raised border border-border rounded-lg flex-1 min-w-[180px] max-w-[280px] focus-within:border-border-strong">
+        {disabled ? (
+          <span className="w-[13px] h-[13px] shrink-0 rounded-full border-[1.5px] border-ink-subtle/30 border-t-ink-muted animate-spin" />
+        ) : (
+          <svg viewBox="0 0 24 24" className="w-[13px] h-[13px] fill-ink-subtle shrink-0">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+          </svg>
+        )}
 
+        {/* 16px below vsm: anything smaller and iOS Safari zooms the page in
+            the moment the field takes focus. */}
         <input
           type="text"
           placeholder="Search ID, merchant, description..."
           value={filters.search}
           onChange={(e) => handleChange("search", e.target.value)}
-          disabled={disabled}
-          className="bg-transparent outline-none w-full text-[13px] text-ink placeholder:text-ink-subtle"
+          className="bg-transparent outline-none w-full text-base vsm:text-[13px] text-ink placeholder:text-ink-subtle"
         />
+
+        {filters.search ? (
+          <button
+            type="button"
+            onClick={() => handleChange("search", "")}
+            aria-label="Clear search"
+            className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-ink-subtle hover:text-ink hover:bg-surface cursor-pointer"
+          >
+            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current">
+              <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       {/* Dynamic Filters */}

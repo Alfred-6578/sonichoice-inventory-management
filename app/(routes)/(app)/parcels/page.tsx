@@ -120,8 +120,13 @@ const ParcelPage = () => {
   })
 
   const debouncedSearch = useDebounce(filters.search)
+  /** Guards against out-of-order responses while someone is typing. */
+  const requestId = useRef(0)
 
   const fetchParcels = useCallback(async () => {
+    // Only the newest request may write to the screen. Without this a slow
+    // early search can land after a later one and replace its results.
+    const request = ++requestId.current
     setLoading(true)
     setError("")
     try {
@@ -135,6 +140,8 @@ const ParcelPage = () => {
         merchantId: merchantId || undefined,
         fromBranchId: branchId || undefined,
       })
+      if (request !== requestId.current) return
+
       const raw = res.data || []
       setParcels(raw.map(mapApiParcel))
 
@@ -146,11 +153,12 @@ const ParcelPage = () => {
         setStatusCounts(res.statusCounts)
       }
     } catch (err) {
+      if (request !== requestId.current) return
       console.error("Failed to fetch parcels:", err)
       setError(err instanceof Error ? err.message : "Failed to load parcels")
       setParcels([])
     } finally {
-      setLoading(false)
+      if (request === requestId.current) setLoading(false)
     }
   }, [page, debouncedSearch, filters.status, filters.branch, filters.merchant])
 

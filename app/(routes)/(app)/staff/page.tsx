@@ -69,8 +69,13 @@ export default function StaffPage() {
   })
 
   const debouncedSearch = useDebounce(filters.search)
+  /** Guards against out-of-order responses while someone is typing. */
+  const requestId = useRef(0)
 
   const fetchUsers = useCallback(async () => {
+    // Only the newest request may write to the screen. Without this a slow
+    // early search can land after a later one and replace its results.
+    const request = ++requestId.current
     setLoading(true)
     setError("")
     try {
@@ -82,6 +87,8 @@ export default function StaffPage() {
         role: filters.role || undefined,
         branchId: branchId || undefined,
       })
+      if (request !== requestId.current) return
+
       setStaff((res.data || []).map(mapApiUser))
 
       if (res.meta) {
@@ -89,11 +96,12 @@ export default function StaffPage() {
         setTotalPages(res.meta.lastPage)
       }
     } catch (err) {
+      if (request !== requestId.current) return
       console.error("Failed to fetch users:", err)
       setError(err instanceof Error ? err.message : "Failed to load users")
       setStaff([])
     } finally {
-      setLoading(false)
+      if (request === requestId.current) setLoading(false)
     }
   }, [page, debouncedSearch, filters.role, filters.branch])
 
@@ -125,9 +133,17 @@ export default function StaffPage() {
         setFilters={setFilters}
         total={staff.length}
         onChange={(f) => {
-          if ((f as StaffFilters).role !== filters.role) setPage(1)
-          if ((f as StaffFilters).branch !== filters.branch) setPage(1)
-          setFilters(f as StaffFilters)
+          const next = f as StaffFilters
+          // Any change to the result set invalidates the page offset — without
+          // this, searching from page 3 asks for page 3 of the new results.
+          if (
+            next.search !== filters.search ||
+            next.role !== filters.role ||
+            next.branch !== filters.branch
+          ) {
+            setPage(1)
+          }
+          setFilters(next)
         }}
         filterConfigs={[
           {

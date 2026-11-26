@@ -214,8 +214,13 @@ const InventoryPage = () => {
   })
 
   const debouncedSearch = useDebounce(filters.search)
+  /** Guards against out-of-order responses while someone is typing. */
+  const requestId = useRef(0)
 
   const fetchProducts = useCallback(async () => {
+    // Only the newest request may write to the screen. Without this a slow
+    // early search can land after a later one and replace its results.
+    const request = ++requestId.current
     setLoading(true)
     setError("")
     try {
@@ -234,6 +239,8 @@ const InventoryPage = () => {
       const raw = res.products || res.data || (Array.isArray(res) ? res : [])
       const mapped = (raw as ApiProduct[]).map(mapApiProduct)
 
+      if (request !== requestId.current) return
+
       setItems(mapped)
 
       if (res.meta) {
@@ -241,10 +248,11 @@ const InventoryPage = () => {
         setTotalPages(res.meta.lastPage)
       }
     } catch (err) {
+      if (request !== requestId.current) return
       console.error("Failed to fetch products:", err)
       setError(err instanceof Error ? err.message : "Failed to load products")
     } finally {
-      setLoading(false)
+      if (request === requestId.current) setLoading(false)
     }
   }, [page, debouncedSearch, filters.branch, filters.merchant])
 
