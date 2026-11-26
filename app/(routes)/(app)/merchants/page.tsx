@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import MerchantGrid from '@/components/merchants/MerchantGrid'
 import MerchantDetailPanel from '@/components/merchants/MerchantDetailPanel'
 import PageHeader from '@/components/ui/PageHeader'
@@ -79,8 +79,13 @@ export default function MerchantsPage() {
   })
 
   const debouncedSearch = useDebounce(filters.search)
+  /** Guards against out-of-order responses while someone is typing. */
+  const requestId = useRef(0)
 
   const fetchMerchants = useCallback(async () => {
+    // Only the newest request may write to the screen. Without this a slow
+    // early search can land after a later one and replace its results.
+    const request = ++requestId.current
     setLoading(true)
     setError("")
     try {
@@ -89,6 +94,8 @@ export default function MerchantsPage() {
         search: debouncedSearch || undefined,
         status: filters.status !== 'all' ? filters.status.toUpperCase() : undefined,
       })
+      if (request !== requestId.current) return
+
       setMerchants((res.data || []).map(mapApiMerchant))
 
       if (res.meta) {
@@ -96,11 +103,12 @@ export default function MerchantsPage() {
         setTotalPages(res.meta.lastPage)
       }
     } catch (err) {
+      if (request !== requestId.current) return
       console.error("Failed to fetch merchants:", err)
       setError(err instanceof Error ? err.message : "Failed to load merchants")
       setMerchants([])
     } finally {
-      setLoading(false)
+      if (request === requestId.current) setLoading(false)
     }
   }, [page, debouncedSearch, filters.status])
 

@@ -232,6 +232,30 @@ export default function ReceiveStockPage() {
 
   /* ─────────── building the list ─────────── */
 
+
+  /**
+   * Shown when nothing contains what was typed. Critical here: without it the
+   * only offer on a near miss is "New product", so a name written slightly
+   * differently from the one on file would be created a second time.
+   */
+  const closest = useMemo(() => {
+    if (matches.length > 0 || !query.trim()) return []
+    const wanted = new Set(normalize(query).split(' ').filter(Boolean))
+    if (wanted.size === 0) return []
+
+    return products
+      .map((p) => {
+        const have = new Set(normalize(p.name).split(' ').filter(Boolean))
+        let shared = 0
+        for (const w of wanted) if (have.has(w)) shared++
+        return { p, shared }
+      })
+      .filter((x) => x.shared > 0)
+      .sort((a, b) => b.shared - a.shared || a.p.name.localeCompare(b.p.name))
+      .slice(0, 8)
+      .map((x) => x.p)
+  }, [matches, query, products])
+
   const addExisting = (product: SystemProduct, quantity: number) =>
     setLines((cur) => {
       const at = cur.findIndex((l) => l.kind === 'existing' && l.product.id === product.id)
@@ -351,7 +375,8 @@ export default function ReceiveStockPage() {
       })
     }
 
-    for (const u of parse.unparsed) stillOpen.push({ text: u.text, quantity: 0 })
+    for (const u of parse.unparsed)
+      stillOpen.push({ text: u.text, quantity: 0, note: 'could not be read' })
 
     setUnplaced(withIds(stillOpen))
     setResolvingId(null)
@@ -400,7 +425,8 @@ export default function ReceiveStockPage() {
         stillOpen.push({ text: o.row.name, quantity: Number.isFinite(n) ? n : 0 })
       }
     }
-    for (const u of parse.unparsed) stillOpen.push({ text: u.text, quantity: 0 })
+    for (const u of parse.unparsed)
+      stillOpen.push({ text: u.text, quantity: 0, note: 'could not be read' })
 
     setUnplaced(withIds(stillOpen))
     setResolvingId(null)
@@ -800,7 +826,15 @@ export default function ReceiveStockPage() {
               {open && query.trim() !== '' && (
                 <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 bg-surface-raised border border-border rounded-xl shadow-[0_12px_28px_-8px_rgba(17,24,39,0.18)] overflow-hidden">
                   <div className="max-h-[50vh] overflow-y-auto overscroll-contain divide-y divide-border">
-                    {matches.map((p) => (
+                    {matches.length === 0 && closest.length > 0 && (
+                      <div className="px-4 py-2 bg-amber-muted border-b border-amber-border">
+                        <p className="text-[12.5px] text-ink">
+                          No exact match — already on file?
+                        </p>
+                      </div>
+                    )}
+
+                    {(matches.length > 0 ? matches : closest).map((p) => (
                       <button
                         key={p.id}
                         onClick={() => pick(p)}
@@ -832,9 +866,11 @@ export default function ReceiveStockPage() {
                           New product: {query.trim()}
                         </div>
                         <div className="text-[12.5px] text-ink-muted">
-                          {matches.length === 0
-                            ? 'Nothing here matches — add it to the system'
-                            : 'Not one of these? Create it instead'}
+                          {matches.length === 0 && closest.length > 0
+                            ? 'Only if it is none of the above'
+                            : matches.length === 0
+                              ? 'Nothing here matches — add it to the system'
+                              : 'Not one of these? Create it instead'}
                         </div>
                       </div>
                     </button>
@@ -848,8 +884,8 @@ export default function ReceiveStockPage() {
 
       {/* not matched from a paste */}
       {unplaced.length > 0 && (
-        <div className={`${CARD} overflow-hidden`}>
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-muted border-b border-amber-border">
+        <div className={`${CARD}`}>
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-muted border-b border-amber-border rounded-t-xl">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-hover shrink-0" />
             <span className="text-[12.5px] font-medium text-ink">
               Not matched
@@ -862,7 +898,7 @@ export default function ReceiveStockPage() {
               Dismiss
             </button>
           </div>
-          <div className="max-h-[38vh] overflow-y-auto overscroll-contain divide-y divide-border">
+          <div className="divide-y divide-border">
             {unplaced.map((u) => (
               <div
                 key={u.id}
